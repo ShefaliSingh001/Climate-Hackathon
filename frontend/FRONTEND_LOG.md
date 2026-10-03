@@ -5,6 +5,25 @@ Anyone (or any Claude session) picking up the frontend should read this before s
 
 ---
 
+## 2026-10-03: Fix blank map ("API KEY REQUIRED" tiles)
+
+**What**
+- Replaced every CARTO tile layer with keyless Esri tiles in `src/components/map/layers.ts`:
+  - Map: Esri World Street Map.
+  - Satellite labels: Esri Boundaries & Places.
+  - Dark: Esri Dark Gray Canvas, base plus labels.
+- Satellite (Esri World Imagery) and Terrain (OpenTopoMap) are unchanged.
+- The location picker on `/sell/new` uses the new Map layer automatically.
+
+**Why**
+- CARTO (`basemaps.cartocdn.com`) began requiring an API key around 28 Aug 2026. Without one it returns tiles watermarked "API KEY REQUIRED" with HTTP 200, so the map looked broken with no error.
+
+**Open items**
+- Esri's public tiles are for non-commercial use. Before going to production, move to a keyed provider (Esri location platform, MapTiler, Mapbox or CARTO with a key) via an env var such as `VITE_MAP_TILES_KEY`.
+- The new tiles could not be loaded from the cloud dev sandbox (network blocked), so check all four map views in a local browser.
+
+---
+
 ## 2026-10-03: First build of the marketplace UI
 
 **What**
