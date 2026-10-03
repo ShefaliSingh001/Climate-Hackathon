@@ -5,7 +5,7 @@ import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { api, isMock } from '../api/client';
 import type { Frequency, Listing, MaterialKey, NewListing, StateCode } from '../api/types';
-import { MATERIALS, MATERIAL_KEYS } from '../lib/materials';
+import { GRADES, MATERIALS, MATERIAL_KEYS } from '../lib/materials';
 import { HOME_SITE, REGIONS } from '../lib/regions';
 import { LAYERS } from '../components/map/layers';
 
@@ -19,12 +19,12 @@ function ClickToPlace({ onPick }: { onPick: (lat: number, lng: number) => void }
   return null;
 }
 
-type Errors = Partial<Record<'grade' | 'tonnes' | 'price' | 'suburb', string>>;
+type Errors = Partial<Record<'grade' | 'tonnes' | 'price' | 'suburb' | 'abn', string>>;
 
 export function SellNew() {
   const [form, setForm] = useState<NewListing>({
     kind: 'supply', company: HOME_SITE.name, suburb: HOME_SITE.suburb, state: HOME_SITE.state,
-    lat: HOME_SITE.lat, lng: HOME_SITE.lng, material: 'copper', grade: '', form: '', tonnes: 10,
+    lat: HOME_SITE.lat, lng: HOME_SITE.lng, material: isMock ? 'copper' : 'steel', grade: isMock ? '' : GRADES.high, form: '', tonnes: 10, abn: '',
     frequency: 'Monthly', priceAud: 0, virginPriceAud: null, purity: null, certifications: ['EPA licence'],
   });
   const [errors, setErrors] = useState<Errors>({});
@@ -41,6 +41,7 @@ export function SellNew() {
     if (!(form.tonnes > 0)) e.tonnes = 'Enter a volume above zero.';
     if (!(form.priceAud > 0)) e.price = 'Enter an asking price in A$ per tonne.';
     if (!form.suburb.trim()) e.suburb = 'Enter the suburb where the material is collected.';
+    if (!isMock && !/^\d{11}$/.test((form.abn ?? '').replace(/\s/g, ''))) e.abn = 'Enter your 11-digit ABN.';
     return e;
   }
 
@@ -51,7 +52,7 @@ export function SellNew() {
     if (Object.keys(e).length) return;
     setStatus('saving');
     try {
-      setCreated(await api.createListing(form));
+      setCreated(await api.createListing({ ...form, abn: form.abn?.replace(/\s/g, '') }));
       setStatus('idle');
     } catch {
       setStatus('error');
@@ -94,7 +95,11 @@ export function SellNew() {
                   </select>
                 </label>
                 <label className="field">Grade
-                  <input id="s-grade" value={form.grade} placeholder="#1 bare bright (Millberry)" onChange={e => update({ grade: e.target.value })} aria-invalid={!!errors.grade} />
+                  {isMock
+                    ? <input id="s-grade" value={form.grade} placeholder="#1 bare bright (Millberry)" onChange={e => update({ grade: e.target.value })} aria-invalid={!!errors.grade} />
+                    : <select id="s-grade" value={form.grade} onChange={e => update({ grade: e.target.value })}>
+                        {Object.values(GRADES).map(g => <option key={g}>{g}</option>)}
+                      </select>}
                   {errors.grade && <span className="err">{errors.grade}</span>}
                 </label>
               </div>
@@ -138,6 +143,12 @@ export function SellNew() {
           <div className="stack">
             <section className="panel form">
               <h2>Collection site</h2>
+              {!isMock && (
+                <label className="field">Business ABN
+                  <input id="s-abn" inputMode="numeric" value={form.abn ?? ''} placeholder="11 digits" onChange={e => update({ abn: e.target.value })} aria-invalid={!!errors.abn} />
+                  {errors.abn && <span className="err">{errors.abn}</span>}
+                </label>
+              )}
               <div className="form-row">
                 <label className="field">Suburb
                   <input id="s-suburb" value={form.suburb} onChange={e => update({ suburb: e.target.value })} aria-invalid={!!errors.suburb} />

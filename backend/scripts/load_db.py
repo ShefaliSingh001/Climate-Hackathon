@@ -11,6 +11,7 @@ kept when you re-run it.
 """
 
 import argparse
+import csv
 import datetime as dt
 import json
 import re
@@ -22,6 +23,7 @@ import openpyxl
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCHEMA = REPO_ROOT / "backend" / "db" / "schema.sql"
 DEFAULT_DB = REPO_ROOT / "backend" / "db" / "circulink.db"
+LOCALITY_COORDS = REPO_ROOT / "backend" / "data" / "locality_coords.csv"
 
 GRADES = {"High quality": "high", "Medium quality": "medium", "Short use": "short_use"}
 MATERIALS = {"Steel": "steel", "Aluminium": "aluminium", "Copper": "copper", "Brass": "brass", "Alloys": "alloys"}
@@ -68,6 +70,28 @@ def iso(value) -> str | None:
     return dt.datetime.strptime(str(value).strip(), "%d %b %Y").date().isoformat()
 
 
+def read_locality_coords() -> dict[tuple[str, str], tuple[float, float]]:
+    """(LOCALITY, postcode) -> suburb-centre lat/lng, written by geocode_localities.py."""
+    if not LOCALITY_COORDS.exists():
+        return {}
+    with LOCALITY_COORDS.open(encoding="utf-8") as f:
+        return {(r["locality"], r["postcode"]): (float(r["lat"]), float(r["lng"])) for r in csv.DictReader(f)}
+
+
+LOCALITIES = read_locality_coords()
+
+
+def location(r: dict, src: dict) -> dict:
+    """NPI facility coordinates where published, else the suburb centre."""
+    if src.get("Latitude") is not None and src.get("Longitude") is not None:
+        return {"lat": src["Latitude"], "lng": src["Longitude"], "geo_source": "npi"}
+    key = (str(r["NSW locality"]).strip().upper(), r["Postcode"] and str(r["Postcode"]) or "")
+    if key in LOCALITIES:
+        lat, lng = LOCALITIES[key]
+        return {"lat": lat, "lng": lng, "geo_source": "locality"}
+    return {"lat": None, "lng": None, "geo_source": None}
+
+
 def business(r: dict, sources: dict[str, dict]) -> dict:
     """Columns both tables share: identity and location."""
     src = sources[str(r["ABN"])]
@@ -81,8 +105,7 @@ def business(r: dict, sources: dict[str, dict]) -> dict:
         "address": text(r["NSW address"]),
         "postcode": r["Postcode"] and str(r["Postcode"]),
         "state": "NSW",
-        "lat": src.get("Latitude"),   # only NPI-listed facilities have coordinates
-        "lng": src.get("Longitude"),
+        **location(r, src),
         "is_synthetic": int(r["Data type"] == "Synthetic scenario"),
     }
 
@@ -119,6 +142,14 @@ def manufacturer(r: dict, sources: dict[str, dict]) -> dict:
     }
 
 
+def upgrade(db: sqlite3.Connection) -> None:
+    """Add columns introduced after a database was first created (schema.sql only creates missing tables)."""
+    for table in ("producers", "manufacturers"):
+        cols = {row[1] for row in db.execute(f"pragma table_info({table})")}
+        if "geo_source" not in cols:
+            db.execute(f"alter table {table} add column geo_source text check (geo_source in ('npi', 'locality', 'user'))")
+
+
 def insert(db: sqlite3.Connection, table: str, rows: list[dict]) -> None:
     cols = list(rows[0])
     db.executemany(
@@ -146,6 +177,7 @@ def main() -> None:
     db = sqlite3.connect(args.db)
     try:
         db.executescript(SCHEMA.read_text(encoding="utf-8"))
+        upgrade(db)
         with db:  # one transaction: all or nothing
             db.execute("delete from producers where is_synthetic = 1")
             db.execute("delete from manufacturers where is_synthetic = 1")
@@ -154,6 +186,9 @@ def main() -> None:
     finally:
         db.close()
     print(f"Loaded {len(producers)} producers and {len(manufacturers)} manufacturers into {args.db}")
+    unplaced = [row["name"] for row in producers + manufacturers if row["lat"] is None]
+    if unplaced:
+        print("No coordinates (run geocode_localities.py):", ", ".join(unplaced))
 
 
 if __name__ == "__main__":

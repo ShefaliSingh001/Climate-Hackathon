@@ -5,6 +5,39 @@ Anyone (or any Claude session) picking up the frontend should read this before s
 
 ---
 
+## 2026-10-03: Live backend and model-based matching
+
+**What**
+- The UI now runs against the real backend (`backend/app`, SQLite) when `VITE_API_URL` is set. The NSW dataset has 63 producers (supply) and 61 manufacturers (demand).
+- Matching on the Sourcing page comes from the tender matching model (`API/scrap_model_api.py`) through the backend:
+  - **Combine suppliers** calls the new `POST /orders/plan`. The model returns up to 3 alternative splits. Option chips switch between them; the split stays editable by hand as before. When no split is possible, the model's reason is shown, e.g. "Insufficient compatible inventory".
+  - **Ranked suppliers**: suppliers the model rules out are dimmed with its reason, e.g. "grade mismatch". Suppliers in its cheapest combined order get a "Best combined order" tag.
+- New materials: `brass` (Br) and `alloys` ("Stainless & alloys", Ss). New `GradeKey` type and `GRADES` labels in `lib/materials.ts`.
+- With the API on:
+  - The Sourcing form asks for a grade (High quality, Medium quality, Short use, or any) instead of minimum purity.
+  - Default quantities follow the real dataset.
+  - The material list shows only materials that have data.
+- **Budget is now material only (excl. freight)** in both modes. It matches the model and the backend's `budget_aud`. Freight is still estimated per line and shown in landed cost.
+- "Lowest landed cost" strategy renamed "Lowest cost".
+- List material (API mode): ABN field (required, 11 digits), and grade is a select of the three backend grades.
+
+**Why**
+- Matching was a placeholder formula in the browser; the team's model now decides eligibility and the optimal split.
+
+**Files**
+- `src/api/types.ts`, `client.ts`, `mock/mockApi.ts`
+- `src/lib/materials.ts`, `sourcing.ts`
+- `src/components/sourcing/CombinePlanner.tsx`
+- `src/pages/Matches.tsx`, `SellNew.tsx`
+- `API_CONTRACT.md`
+
+**Open items**
+- Brass shares an ochre hue with paper; the codes (Br / Pa) tell them apart, and the live data has no paper yet.
+- The model has no emissions objective; "Lowest freight emissions" plans by cost when the API is on (a notice says so).
+- Locations without a published facility are suburb centres (`locationApprox`); the UI doesn't flag them yet.
+
+---
+
 ## 2026-10-03: Compact list, full supplier page, freight estimate, combined orders
 
 **What**

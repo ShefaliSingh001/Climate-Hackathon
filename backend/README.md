@@ -1,13 +1,50 @@
 # CircuLink backend
 
-Database (SQLite) for the marketplace. The API and AI matching will live here too.
+SQLite database plus a FastAPI server that serves `frontend/API_CONTRACT.md`. Matching uses the tender matching model
+in `API/scrap_model_api.py`.
 
-## Quick start
+## Run it
+
+From the repo root:
 
 ```bash
 pip install -r backend/requirements.txt
-python backend/scripts/load_db.py
+uvicorn backend.app.main:app --reload --port 8000     # API docs at http://localhost:8000/docs
 ```
+
+Then point the frontend at it: in `frontend/.env.local` set `VITE_API_URL=http://localhost:8000` and run
+`npm run dev` in `frontend/`. Tests: `pytest backend/tests` (they run against a temporary copy of the database).
+
+| Path | What it does |
+| --- | --- |
+| `app/main.py` | endpoints, request validation, `{ "error": ... }` responses, CORS (`CORS_ORIGINS`, default `http://localhost:5173`) |
+| `app/listings.py` | database rows → `Listing` (producers → `p<id>` supply, manufacturers → `m<id>` demand) |
+| `app/matching.py` | adapter to the matching model: builds its tender and producers, maps its plans back |
+| `app/db.py` | SQLite connection (`CIRCULINK_DB` overrides the path; foreign keys on) |
+
+## Matching
+
+`API/scrap_model_api.py` (the team's model, unchanged) does the matching:
+
+- **Eligibility:** a producer qualifies for a request only if the material and grade match exactly, it holds every
+  required certification, and its supply period overlaps the delivery window. The window defaults to next calendar
+  month; the dataset covers November 2026.
+- **Combined orders** (`POST /orders/plan`): an exact optimiser (mixed-integer linear program). It finds the cheapest
+  split, or the one with the fewest suppliers, that delivers exactly the requested tonnes within the material budget
+  and up to `maxPartners`. It returns up to 3 alternatives with different supplier sets. With no possible split, it
+  says why (e.g. not enough compatible stock, and the shortfall).
+- **Ranked suppliers** (`POST /matches`): every same-material producer, model-eligible ones first. Each gets a
+  0–100 score:
+  - Weights: material 30%, distance 25%, price against the buyer's ceiling 20%, reliability (ABN verified plus
+    certifications) 15%, volume 10%.
+  - Ineligible producers score 0 and show the model's reason.
+  - `inBestPlan` marks producers in the model's cheapest combination.
+- **Card scores** (`matchScore` on `GET /listings`): the same score with no specific requirement.
+
+Not modelled: transport cost (the UI estimates freight separately), tax, and reserving stock across several
+tenders. "Any grade" passes every producer to the model with the same grade, so the grade check is skipped.
+
+## Database
 
 The database is committed as `backend/db/circulink.db`, already loaded, so you can open it straight away. The
 commands above rebuild it from `backend/db/schema.sql` and the two spreadsheets in the repo root; run them after the
@@ -60,7 +97,11 @@ The same business (same ABN) can appear in both tables.
 | Output grade request | `output_grade_request` | key from `grades` |
 | | `purchase_start`, `purchase_end` | purchase window |
 
-Both tables also have `id` (integer), `is_synthetic` (0/1), `created_at` and `updated_at` (kept current by a trigger).
+Both tables also have `id` (integer), `geo_source` (`npi` = published facility coordinates, `locality` = suburb
+centre, `user` = picked on the map), `is_synthetic` (0/1), `created_at` and `updated_at` (kept current by a trigger).
+
+`enquiries` holds quote requests: one listing (`producer_id` or `manufacturer_id`), tonnes per month, first delivery and
+a message.
 Dates are ISO text (`2026-11-01`), timestamps UTC text (`2026-10-03T07:09:01Z`).
 
 **Grades are ranked**, so matching joins on `grades.rank` to find offers at least as good as requested:
@@ -91,13 +132,16 @@ takes the legal entity, published activity and, where the business is an NPI-lis
 After the spreadsheets change, re-run `python backend/scripts/load_db.py`. It only replaces `is_synthetic` rows, so
 data entered through the app is kept. Other spreadsheets: `--producers path.xlsx --manufacturers path.xlsx`.
 
+**Coordinates:** NPI facilities (17 producers, 19 manufacturers) use their published coordinates. Everyone else gets
+the suburb centre from `backend/data/locality_coords.csv`. Regenerate that file with
+`python backend/scripts/geocode_localities.py` (needs internet) when the spreadsheets add new suburbs. It comes from
+the community dataset at https://github.com/matthewproctor/australianpostcodes; only the localities we use are kept.
+
 ## Open items
 
-- **Coordinates:** only the NPI facilities have lat/lng (17 of 63 producers, 19 of 61 manufacturers). The map and
-  distance score need them for every row, so geocode the rest from address, locality and postcode.
-- **Frontend materials:** the UI's `MaterialKey` has no `brass` or `alloys`; they need adding to
-  `frontend/src/api/types.ts` and `frontend/src/lib/materials.ts`.
-- **API:** map these tables to the shapes in `frontend/API_CONTRACT.md` (producers → `kind: "supply"`,
-  manufacturers → `kind: "demand"`, `max_price_aud_per_t` → `priceAud`).
+- **Street-level coordinates:** suburb centres are close enough for distance scores but not for routing. Geocode
+  street addresses when a geocoding service is available.
+- **Virgin prices** (`VIRGIN_PRICE_AUD` in `app/listings.py`) and CO2e factors are indicative preview values.
+- **Impact page** shows listed supply, not completed trades (`isSample: true`), until trades are recorded.
 - **Hosting:** SQLite is a local file. If the API is deployed somewhere with an ephemeral disk, app-entered rows are
   lost on restart; move to a hosted database then.

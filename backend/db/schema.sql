@@ -65,6 +65,7 @@ create table if not exists producers (
                        check (state in ('NSW','VIC','QLD','SA','WA','TAS','ACT','NT')),
   lat                real check (lat between -90 and 90),
   lng                real check (lng between -180 and 180),
+  geo_source         text check (geo_source in ('npi', 'locality', 'user')), -- npi = facility, locality = suburb centre
 
   -- what they produce
   material_focus     text,                         -- free text from the sign-up form
@@ -111,6 +112,7 @@ create table if not exists manufacturers (
                            check (state in ('NSW','VIC','QLD','SA','WA','TAS','ACT','NT')),
   lat                    real check (lat between -90 and 90),
   lng                    real check (lng between -180 and 180),
+  geo_source             text check (geo_source in ('npi', 'locality', 'user')),
 
   -- what they need
   required_material      text not null references materials (key),
@@ -135,6 +137,22 @@ create table if not exists manufacturers (
 
 create index if not exists manufacturers_material_grade_idx on manufacturers (required_material, output_grade_request);
 create index if not exists manufacturers_abn_idx on manufacturers (abn);
+
+-- ---------------------------------------------------------------------
+-- Enquiries (quote requests sent from a listing page or a combined order)
+-- ---------------------------------------------------------------------
+
+create table if not exists enquiries (
+  id                integer primary key,
+  producer_id       integer references producers (id) on delete cascade,
+  manufacturer_id   integer references manufacturers (id) on delete cascade,
+  tonnes_per_month  real not null check (tonnes_per_month > 0),
+  first_delivery    text not null,
+  message           text not null default '',
+  created_at        text not null default (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+
+  check ((producer_id is null) <> (manufacturer_id is null)) -- exactly one listing
+);
 
 -- ---------------------------------------------------------------------
 -- Keep updated_at current (recursive_triggers is off by default, so the

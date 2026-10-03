@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { BadgeCheck, CheckCircle2, Plus, X } from 'lucide-react';
 import { api, isMock } from '../../api/client';
-import type { Listing } from '../../api/types';
+import type { Listing, OrderPlanResult } from '../../api/types';
 import { MATERIALS } from '../../lib/materials';
 import { aud, co2e, fmtInt } from '../../lib/format';
 import { TRUCKS } from '../../lib/logistics';
-import { allocate, planOrder, spareCandidates, summarise, STRATEGIES, type Allocation, type OrderRequest, type Strategy } from '../../lib/sourcing';
+import { allocate, spareCandidates, summarise, STRATEGIES, type Allocation, type OrderRequest, type Strategy } from '../../lib/sourcing';
 import { RouteMap } from '../map/RouteMap';
 
 interface Props {
@@ -14,22 +14,41 @@ interface Props {
   request: Omit<OrderRequest, 'strategy' | 'maxPartners' | 'verifiedOnly'>;
 }
 
-/** Fills one demand from several suppliers, then lets the buyer adjust the split by hand. */
+/** Fills one demand from several suppliers (via the matching model), then lets the buyer adjust the split by hand. */
 export function CombinePlanner({ supply, request }: Props) {
   const [strategy, setStrategy] = useState<Strategy>('cost');
   const [maxPartners, setMaxPartners] = useState(4);
   const [verifiedOnly, setVerifiedOnly] = useState(true);
   const [lines, setLines] = useState<Allocation[]>([]);
   const [sent, setSent] = useState(false);
+  const [result, setResult] = useState<OrderPlanResult | null>(null);
+  const [option, setOption] = useState(0);
+  const [planning, setPlanning] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const req: OrderRequest = { ...request, strategy, maxPartners, verifiedOnly };
   const reqKey = JSON.stringify(req);
+  const byId = useMemo(() => new Map(supply.map(s => [s.id, s])), [supply]);
+
+  const linesFor = (r: OrderPlanResult | null, i: number): Allocation[] =>
+    (r?.plans[i]?.lines ?? []).flatMap(l => {
+      const listing = byId.get(l.listingId);
+      return listing ? [allocate(listing, l.tonnes, req.site)] : [];
+    });
 
   // Re-plan whenever the requirement or options change; manual edits apply on top until then.
   useEffect(() => {
-    setLines(planOrder(supply, req).lines);
+    let live = true;
+    setPlanning(true);
     setSent(false);
-  }, [supply, reqKey]);
+    api.planOrder(req).then(
+      r => { if (live) { setResult(r); setOption(0); setLines(linesFor(r, 0)); setFailed(false); setPlanning(false); } },
+      () => { if (live) { setResult(null); setLines([]); setFailed(true); setPlanning(false); } },
+    );
+    return () => { live = false; };
+  }, [byId, reqKey]);
+
+  const pickOption = (i: number) => { setOption(i); setLines(linesFor(result, i)); setSent(false); };
 
   const plan = useMemo(() => summarise(lines, req), [lines, reqKey]);
   const spare = spareCandidates(supply, req, lines);
@@ -49,7 +68,7 @@ export function CombinePlanner({ supply, request }: Props) {
   }
 
   const coverage = req.tonnesPerMonth ? Math.min(100, (plan.tonnes / req.tonnesPerMonth) * 100) : 0;
-  const spend = req.budgetAud ? (plan.total / req.budgetAud) * 100 : 0;
+  const spend = req.budgetAud ? (plan.materialTotal / req.budgetAud) * 100 : 0;
   const met = plan.shortfallT < 0.5;
   const inBudget = plan.budgetLeft >= 0;
 
@@ -71,11 +90,29 @@ export function CombinePlanner({ supply, request }: Props) {
         </div>
       </section>
 
-      <section className={`panel plan-summary ${met && inBudget ? 'ok' : 'warn'}`}>
+      {result && result.plans.length > 1 && (
+        <section className="panel">
+          <div className="filter-row" role="radiogroup" aria-label="Alternative plans">
+            {result.plans.map((p, i) => (
+              <button key={p.rank} type="button" className="chip" role="radio" aria-checked={i === option} aria-pressed={i === option} onClick={() => pickOption(i)}>
+                Option {p.rank} · <span className="num">{aud(p.totalCostAud)}</span> · {p.supplierCount} {p.supplierCount === 1 ? 'partner' : 'partners'}
+              </button>
+            ))}
+          </div>
+          <p className="hint">Each option uses a different set of suppliers. Costs are supplier prices before freight.</p>
+        </section>
+      )}
+
+      {failed && <div className="panel empty">Couldn't plan this order. Check the API is running and try again.</div>}
+      {result?.notice && <p className="hint">{result.notice}</p>}
+
+      <section className={`panel plan-summary ${met && inBudget ? 'ok' : 'warn'}`} aria-busy={planning}>
         <div className="plan-status">
+          {!lines.length && result?.reason && <><b>No combination found.</b> {result.reason}{result.shortfallTonnes ? ` Short by ${fmtInt(result.shortfallTonnes)} t of compatible stock.` : ''}</>}
           {met && inBudget && <><CheckCircle2 size={18} /><b>Demand met within budget</b> using {lines.filter(l => l.tonnes > 0).length} partners</>}
-          {!met && <><b>Short by {fmtInt(plan.shortfallT)} t/month.</b> Add a partner, allow more partners or untick “Verified only”.</>}
-          {met && !inBudget && <><b>Over budget by {aud(-plan.budgetLeft)}/month.</b> Try “Lowest landed cost” or raise the budget.</>}
+          {lines.length > 0 && !met && <><b>Short by {fmtInt(plan.shortfallT)} t/month.</b> Add a partner, allow more partners or untick “Verified only”.</>}
+          {met && !inBudget && <><b>Over budget by {aud(-plan.budgetLeft)}/month.</b> Try “Lowest cost” or raise the budget.</>}
+          {!lines.length && !result?.reason && !failed && <>Planning…</>}
         </div>
         <div className="meters">
           <div className="meter">
@@ -83,7 +120,7 @@ export function CombinePlanner({ supply, request }: Props) {
             <div className="track"><div className="fill" style={{ width: `${coverage}%`, background: met ? 'var(--good)' : 'var(--warn)' }} /></div>
           </div>
           <div className="meter">
-            <div className="meter-head"><span>Budget</span><span className="num">{aud(plan.total)} / {aud(req.budgetAud)}</span></div>
+            <div className="meter-head"><span>Material budget</span><span className="num">{aud(plan.materialTotal)} / {aud(req.budgetAud)}</span></div>
             <div className="track"><div className="fill" style={{ width: `${Math.min(100, spend)}%`, background: inBudget ? 'var(--good)' : 'var(--danger)' }} /></div>
           </div>
         </div>
@@ -99,7 +136,7 @@ export function CombinePlanner({ supply, request }: Props) {
         <section className="panel table-panel">
           <h2>Order split</h2>
           {lines.length === 0 ? (
-            <div className="empty">No suppliers match. Lower the purity or untick “Verified only”.</div>
+            <div className="empty">No suppliers in this plan. Change the grade, allow more partners, untick “Verified only” or add a supplier below.</div>
           ) : (
             <div className="table-scroll">
               <table className="alloc">
@@ -162,7 +199,10 @@ export function CombinePlanner({ supply, request }: Props) {
           <RouteMap site={req.site} listings={lines.filter(l => l.tonnes > 0).map(l => l.listing)} height={340} />
         </section>
       </div>
-      <p className="hint">Landed cost = supplier price + estimated road freight to your site. Freight uses the cheapest truck per partner and assumes an empty return leg.</p>
+      <p className="hint">
+        {isMock ? 'Demo mode: the split is a quick greedy estimate in the browser.' : 'The split comes from the CircuLink matching model: exact material and grade, every partner available in the delivery window, the exact tonnes and the material budget.'}
+        {' '}Landed cost = supplier price + estimated road freight to your site. Freight uses the cheapest truck per partner and assumes an empty return leg.
+      </p>
     </div>
   );
 }
