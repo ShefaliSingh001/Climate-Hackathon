@@ -8,6 +8,14 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Instrument+Sans:wght@500;600;700&family=Montserrat:wght@500;700&display=swap" />
+    <script>
+      // Apply the saved theme before first paint (see src/state/settings.ts).
+      try {
+        var s = JSON.parse(localStorage.getItem('resourcex.settings') || '{}');
+        if (s.theme === 'light' || s.theme === 'dark') document.documentElement.dataset.theme = s.theme;
+        if (s.motion === 'reduced') document.documentElement.dataset.motion = 'reduced';
+      } catch (e) {}
+    </script>
     <title>ResourceX · Materials in motion</title>
   </head>
   <body>

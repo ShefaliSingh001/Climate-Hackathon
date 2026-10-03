@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, BadgeCheck, Check, Factory, Layers3, Map as MapIcon, Recycle, Truck } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
@@ -6,6 +6,7 @@ import { DotField } from '../components/brand/DotField';
 import { Logo } from '../components/brand/Logo';
 import { ACT_PATH, HOME_XY, NSW_PATH, PINS } from '../components/home/nswMap';
 import { PartnerStrip } from '../components/home/PartnerStrip';
+import { CountUp, Reveal, useScrollFx } from '../components/home/motion';
 import { MATERIALS } from '../lib/materials';
 import type { MaterialKey } from '../api/types';
 import '../styles/home.css';
@@ -19,29 +20,18 @@ const PHOTOS = {
 };
 type PhotoKey = keyof typeof PHOTOS;
 
-function Photo({ name, className = '' }: { name: PhotoKey; className?: string }) {
+function Photo({ name, className = '', parallax }: { name: PhotoKey; className?: string; parallax?: number }) {
   const p = PHOTOS[name];
   return (
-    <div className={`photo ${className}`}>
+    <div className={`photo ${className}${parallax ? ' parallax' : ''}`} data-parallax={parallax}>
       <img src={p.src} width={p.w} height={p.h} alt={p.alt} loading="lazy" decoding="async" />
     </div>
   );
 }
 
-/** Slides a block up slightly as it scrolls into view. Content is visible at rest. */
-function Reveal({ children, className = '', id }: { children: ReactNode; className?: string; id?: string }) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = ref.current!;
-    if (el.getBoundingClientRect().top < window.innerHeight) return;
-    el.classList.add('pending');
-    const io = new IntersectionObserver(([e]) => { if (e.isIntersecting) { el.classList.remove('pending'); io.disconnect(); } }, { threshold: 0.12 });
-    io.observe(el);
-    const fallback = setTimeout(() => el.classList.remove('pending'), 2500);
-    return () => { io.disconnect(); clearTimeout(fallback); };
-  }, []);
-  return <div ref={ref} id={id} className={`reveal ${className}`}>{children}</div>;
-}
+const NAV_LINKS: [string, string][] = [['how', 'How it works'], ['platform', 'Platform'], ['who', "Who it's for"], ['impact', 'Impact']];
+// "problem" is watched too, so the highlight clears when you scroll back above "How it works".
+const SECTIONS = ['problem', ...NAV_LINKS.map(([id]) => id)];
 
 const ROUTES = ['s02', 's01'];
 const CITY_LABELS: [string, number, number][] = [
@@ -57,7 +47,10 @@ function NswMap() {
       <path d={NSW_PATH} fill="#1A3A26" stroke="#4C7046" strokeWidth={1.2} />
       <path d={ACT_PATH} fill="#20442D" stroke="#4C7046" />
       {ROUTES.map(id => (
-        <path key={id} className="route" d={`M${byId[id].x},${byId[id].y} L${HOME_XY[0]},${HOME_XY[1]}`} stroke="#A8CF6A" strokeWidth={2} fill="none" />
+        <g key={id}>
+          <path className="route-base" pathLength={1000} d={`M${byId[id].x},${byId[id].y} L${HOME_XY[0]},${HOME_XY[1]}`} stroke="#A8CF6A" strokeWidth={2.5} strokeLinecap="round" fill="none" />
+          <path className="route-pulse" pathLength={1000} d={`M${byId[id].x},${byId[id].y} L${HOME_XY[0]},${HOME_XY[1]}`} stroke="#F4FBE8" strokeWidth={3} strokeLinecap="round" fill="none" />
+        </g>
       ))}
       {PINS.map((p, i) => {
         const on = ROUTES.includes(p.id);
@@ -86,16 +79,18 @@ export function Home() {
   const buyerCta = account ? '/marketplace' : '/signup?role=buyer';
   const sellerCta = account ? (account.role === 'seller' ? '/sell/new' : '/marketplace') : '/signup?role=seller';
 
+  const navRef = useRef<HTMLElement>(null);
+  const { scrolled, active } = useScrollFx(navRef, SECTIONS);
+
   return (
     <div className="home">
-      <header className="home-nav">
+      <header ref={navRef} className={`home-nav${scrolled ? ' scrolled' : ''}`}>
         <div className="wrap nav-inner">
           <Logo to="/" size={26} />
           <nav className="pill-links" aria-label="Sections">
-            <a href="#how">How it works</a>
-            <a href="#platform">Platform</a>
-            <a href="#who">Who it's for</a>
-            <a href="#impact">Impact</a>
+            {NAV_LINKS.map(([id, label]) => (
+              <a key={id} href={`#${id}`} aria-current={active === id ? 'true' : undefined}>{label}</a>
+            ))}
           </nav>
           <div className="nav-cta">
             {account ? (
@@ -108,6 +103,7 @@ export function Home() {
             )}
           </div>
         </div>
+        <div className="scroll-progress" aria-hidden="true" />
       </header>
 
       <section className="hero">
@@ -123,9 +119,9 @@ export function Home() {
         </div>
         <div className="hero-facts">
           <div className="wrap">
-            <div className="fact"><b>6.9%</b><span>of materials used worldwide are recycled</span></div>
-            <div className="fact"><b>15%</b><span>COP31 circular-use goal for 2035</span></div>
-            <div className="fact"><b>80%</b><span>NSW resource recovery target by 2030</span></div>
+            <div className="fact"><b><CountUp value={6.9} decimals={1} suffix="%" /></b><span>of materials used worldwide are recycled</span></div>
+            <div className="fact"><b><CountUp value={15} suffix="%" /></b><span>COP31 circular-use goal for 2035</span></div>
+            <div className="fact"><b><CountUp value={80} suffix="%" /></b><span>NSW resource recovery target by 2030</span></div>
           </div>
         </div>
       </section>
@@ -134,13 +130,13 @@ export function Home() {
 
       <section className="band" id="problem">
         <div className="wrap problem-grid">
-          <Reveal><Photo className="problem-photo" name="scrapYard" /></Reveal>
-          <Reveal>
+          <Reveal variant="left"><Photo className="problem-photo" name="scrapYard" parallax={28} /></Reveal>
+          <Reveal variant="right" delay={120}>
             <span className="eyebrow">The problem</span>
             <h2 className="h2-left">The material exists. Buyers can't find it.</h2>
             <ul className="problem-list">
-              <li><b>6.9%</b><p><strong>The world is going backwards</strong>Global circular material use fell from 9.1% in 2018 to 6.9% in 2025.</p></li>
-              <li><b>80%</b><p><strong>Recovered material needs buyers</strong>NSW aims to recover 80% of waste by 2030, yet recyclers still sell through phone calls and brokers. Manufacturers can't see grade, volume or distance before they ask.</p></li>
+              <li><b><CountUp value={6.9} decimals={1} suffix="%" /></b><p><strong>The world is going backwards</strong>Global circular material use fell from 9.1% in 2018 to 6.9% in 2025.</p></li>
+              <li><b><CountUp value={80} suffix="%" /></b><p><strong>Recovered material needs buyers</strong>NSW aims to recover 80% of waste by 2030, yet recyclers still sell through phone calls and brokers. Manufacturers can't see grade, volume or distance before they ask.</p></li>
               <li><b>$ per tonne</b><p><strong>Freight decides the deal</strong>A cheaper tonne 600 km away can end up costing more than newly sourced material. Without a landed price, buyers default to what they know.</p></li>
             </ul>
             <p className="src">Sources: Circularity Gap Report 2018–2025 (Circle Economy); NSW Waste and Sustainable Materials Strategy 2041.</p>
@@ -160,8 +156,8 @@ export function Home() {
               { n: 1, t: 'List', photo: 'sortingLine' as PhotoKey, p: 'Recyclers publish material, grade, monthly volume, price and yard location in a few minutes.', li: ['ABN and EPA licence checked', 'Pinned on the map by suburb'] },
               { n: 2, t: 'Match', photo: 'copper' as PhotoKey, p: "Manufacturers enter demand and budget. The matching model ranks suppliers on grade, certification, delivery window and price.", li: ['Grade and certification filters', 'Filter by state, starting with NSW'] },
               { n: 3, t: 'Deliver', photo: 'truck' as PhotoKey, p: 'See the landed cost with freight included, then split one order across several partners to hit your volume within budget.', li: ['Truck type, trips and freight per tonne', 'Quote requests to every partner at once'] },
-            ].map(s => (
-              <Reveal key={s.n} className="step">
+            ].map((s, i) => (
+              <Reveal key={s.n} className="step" delay={i * 130}>
                 <Photo name={s.photo} />
                 <div><span className="step-num">Step {s.n}</span><h3>{s.t}</h3></div>
                 <p>{s.p}</p>
@@ -174,18 +170,18 @@ export function Home() {
 
       <section className="band product" id="platform">
         <div className="wrap product-grid">
-          <Reveal className="product-copy">
+          <Reveal className="product-copy" variant="left">
             <span className="eyebrow">The platform</span>
             <h2 className="h2-left">One map of recycled supply, priced to your door</h2>
             <p>Every listing shows what it costs once it reaches your site. When no single yard has enough, ResourceX combines several.</p>
-            <ul className="feat">
+            <Reveal as="ul" className="feat" stagger>
               <li><span className="ic"><MapIcon size={18} /></span><div><b>Live supply map</b><span>Street, satellite, terrain and dark views, filtered by state, material and distance.</span></div></li>
               <li><span className="ic"><Truck size={18} /></span><div><b>Landed cost, not just price</b><span>Rigid, semi-trailer or B-double freight estimated for every route.</span></div></li>
               <li><span className="ic"><Layers3 size={18} /></span><div><b>Combined orders</b><span>Meet a monthly tonnage from several verified partners, optimised for cost or fewest partners.</span></div></li>
               <li><span className="ic"><BadgeCheck size={18} /></span><div><b>Verified businesses</b><span>ABN, licences and certifications shown on every listing.</span></div></li>
-            </ul>
+            </Reveal>
           </Reveal>
-          <Reveal className="map-card">
+          <Reveal className="map-card" variant="right" delay={100}>
             <div className="map-head"><b>Copper · 60 tonnes a month to Wetherill Park</b><span>Sample data</span></div>
             <NswMap />
             <div className="order">
@@ -219,7 +215,7 @@ export function Home() {
                 <Link className="h-btn h-outline h-sm" to={sellerCta}>Sell on ResourceX <ArrowRight size={15} /></Link>
               </div>
             </Reveal>
-            <Reveal className="aud">
+            <Reveal className="aud" delay={130}>
               <div className="aud-body">
                 <span className="aud-icon"><Factory size={22} /></span>
                 <span className="eyebrow">Manufacturers</span>
@@ -242,10 +238,10 @@ export function Home() {
             <h2>Every tonne traded is a tonne not mined</h2>
             <p>ResourceX counts what is delivered and what it avoids, so councils, buyers and investors can see progress toward the COP31 goal.</p>
           </Reveal>
-          <Reveal className="impact-grid">
-            <div><b>9.0 tonnes</b><span>of CO₂e avoided per tonne of recycled aluminium</span></div>
-            <div><b>3.0 tonnes</b><span>of CO₂e avoided per tonne of recycled copper</span></div>
-            <div><b>1.4 tonnes</b><span>of CO₂e avoided per tonne of recycled steel</span></div>
+          <Reveal className="impact-grid" stagger>
+            <div><b><CountUp value={9} decimals={1} suffix=" tonnes" /></b><span>of CO₂e avoided per tonne of recycled aluminium</span></div>
+            <div><b><CountUp value={3} decimals={1} suffix=" tonnes" /></b><span>of CO₂e avoided per tonne of recycled copper</span></div>
+            <div><b><CountUp value={1.4} decimals={1} suffix=" tonnes" /></b><span>of CO₂e avoided per tonne of recycled steel</span></div>
             <div><b>$ per tonne</b><span>delivered cost shown for every route</span></div>
           </Reveal>
           <p className="src">Indicative emissions factors used in the ResourceX prototype. Replace with audited factors before reporting.</p>
@@ -253,7 +249,7 @@ export function Home() {
       </section>
 
       <section className="band closing">
-        <div className="wrap">
+        <Reveal className="wrap">
           <span className="eyebrow">Get started</span>
           <h2>Make recycled the default choice</h2>
           <p>Create a free account as a buyer or a seller, or explore with a demo account.</p>
@@ -261,7 +257,7 @@ export function Home() {
             <Link className="h-btn h-primary" to={account ? '/marketplace' : '/signup'}>{account ? 'Go to dashboard' : 'Create an account'} <ArrowRight size={16} /></Link>
             {!account && <Link className="h-btn h-outline" to="/login">Try a demo account</Link>}
           </div>
-        </div>
+        </Reveal>
       </section>
 
       <footer className="home-footer">

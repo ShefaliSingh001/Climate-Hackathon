@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Info } from 'lucide-react';
 import { FilterBar } from '../components/listings/FilterBar';
 import { ListingCard } from '../components/listings/ListingCard';
 import { MarketMap } from '../components/map/MarketMap';
@@ -29,7 +29,10 @@ export function Marketplace() {
           <span><strong className="num">{visible.length}</strong> {noun} in {region === 'AU' ? 'Australia' : regionByCode(region).name}</span>
           <span>from {HOME_SITE.suburb}, {HOME_SITE.state}</span>
         </div>
-        <p className="rank-legend">Ranked against each other on material quality, distance, price and reliability. "1st" is best. Prices in Australian dollars per tonne, excluding GST.</p>
+        <details className="rank-legend">
+          <summary><Info size={13} />How ranking works</summary>
+          <p>Listings are ranked against each other on material quality, distance, price and reliability. "1st" is best. Prices are in Australian dollars per tonne, excluding GST.</p>
+        </details>
         <div className="list" onMouseLeave={() => set({ hoveredId: null })}>
           {error && <div className="notice error" role="alert"><AlertTriangle size={16} />Couldn't load listings: {error.message}</div>}
           {loading && !all.length && [0, 1, 2, 3, 4, 5].map(i => <div key={i} className="skeleton" />)}
