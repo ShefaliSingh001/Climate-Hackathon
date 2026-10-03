@@ -28,14 +28,18 @@ src/
     mock/       listings.json (sample AU listings), mockApi.ts, scoring.ts (stand-in for the AI model)
   components/
     layout/     TopBar (nav, search, Buy/Sell toggle)
-    listings/   FilterBar (state, materials, sort, distance), ListingCard, ListingDrawer (+ enquiry form)
-    map/        MarketMap (pins, state outline, radius, controls), LayerSwitcher, layers.ts (tile sources)
+    listings/   FilterBar (state, materials, sort, distance), ListingCard (compact rail row),
+                LogisticsEstimate (freight + landed cost), EnquiryForm
+    map/        MarketMap (pins, state outline, radius, controls), LayerSwitcher, layers.ts (tile sources),
+                RouteMap (your site + partners with dashed lines)
+    sourcing/   CombinePlanner (split one demand across several suppliers, editable)
     ui/         CircularityChart
   data/         au-states.json (state boundaries, Natural Earth via datamaps, simplified)
   hooks/        useAsync (fetch state), useListings (load + filter + sort for the marketplace)
   lib/          materials.ts (labels, colours, CO2 factors), regions.ts (states, bounds, HOME_SITE),
-                format.ts (A$, tonnes), geo.ts (distance)
-  pages/        Marketplace, Matches, SellNew, Impact
+                format.ts (A$, tonnes), geo.ts (distance), logistics.ts (truck rates, freight estimate),
+                sourcing.ts (multi-supplier order planner)
+  pages/        Marketplace, ListingDetail (/listing/:id), Matches (ranked + combine tabs), SellNew, Impact
   state/        store.ts (zustand: mode, region, filters, hovered pin, map layer)
   styles/       tokens.css (all colours, light + dark), app.css (all component styles, sectioned)
 ```
@@ -52,5 +56,6 @@ src/
 
 - No auth: the signed-in site is the constant `HOME_SITE` in `lib/regions.ts` (Westlink Cable Co., Wetherill Park NSW).
 - Road distance is straight line × 1.25 (`lib/geo.ts`).
+- Freight rates and the order planner run in the browser (`lib/logistics.ts`, `lib/sourcing.ts`); the backend can take them over later.
 - No marker clustering yet; fine for ~50 listings.
 - Bundle is ~780 kB, mostly Leaflet + state boundaries; code-split if it matters.

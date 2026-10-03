@@ -4,6 +4,7 @@ import { Marketplace } from './pages/Marketplace';
 import { Matches } from './pages/Matches';
 import { SellNew } from './pages/SellNew';
 import { Impact } from './pages/Impact';
+import { ListingDetail } from './pages/ListingDetail';
 
 export function App() {
   return (
@@ -13,7 +14,7 @@ export function App() {
         <div className="app-main">
           <Routes>
             <Route path="/" element={<Marketplace />} />
-            <Route path="/listing/:id" element={<Marketplace />} />
+            <Route path="/listing/:id" element={<ListingDetail />} />
             <Route path="/matches" element={<Matches />} />
             <Route path="/sell/new" element={<SellNew />} />
             <Route path="/impact" element={<Impact />} />
