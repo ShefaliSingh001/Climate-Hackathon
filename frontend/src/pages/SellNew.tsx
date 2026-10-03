@@ -151,7 +151,7 @@ export function SellNew() {
               </div>
               <div className="picker-map">
                 <MapContainer center={[form.lat, form.lng]} zoom={9} style={{ height: '100%' }} attributionControl={false}>
-                  <TileLayer url={LAYERS.map.base.url} subdomains={LAYERS.map.base.subdomains} />
+                  <TileLayer url={LAYERS.map.base.url} maxZoom={LAYERS.map.base.maxZoom} />
                   <Marker position={[form.lat, form.lng]} icon={pickIcon} />
                   <ClickToPlace onPick={(lat, lng) => update({ lat, lng })} />
                 </MapContainer>

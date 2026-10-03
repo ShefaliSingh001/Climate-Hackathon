@@ -1,96 +1,132 @@
 import { useState, type CSSProperties, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
-import { BadgeCheck, Sparkles } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { BadgeCheck, Layers3, ListOrdered, Sparkles } from 'lucide-react';
 import { api, isMock } from '../api/client';
-import type { MatchRequest, MaterialKey } from '../api/types';
+import type { MaterialKey } from '../api/types';
 import { useAsync } from '../hooks/useAsync';
 import { MATERIALS, MATERIAL_KEYS } from '../lib/materials';
 import { HOME_SITE } from '../lib/regions';
 import { aud, fmtInt, per } from '../lib/format';
+import { CombinePlanner } from '../components/sourcing/CombinePlanner';
 
-// Sensible starting values per material (min purity %, t/month, max A$/t).
+interface Requirement {
+  material: MaterialKey;
+  minPurity: number;
+  tonnesPerMonth: number;
+  /** A$ per month for material plus freight. */
+  budgetAud: number;
+}
+
+// Starting values per material: min purity %, t/month, A$/t ceiling. Volumes are set above most
+// single suppliers so the combine view has something to do.
 const DEFAULTS: Record<MaterialKey, [number, number, number]> = {
-  copper: [99, 20, 13300], aluminium: [97, 40, 2900], steel: [97, 500, 470], plastics: [99, 30, 1750],
-  paper: [95, 500, 190], ewaste: [0, 5, 9000], glass: [99, 1000, 130],
+  copper: [99, 60, 13600], aluminium: [97, 150, 3000], steel: [97, 3000, 520], plastics: [99, 120, 1850],
+  paper: [95, 2500, 220], ewaste: [0, 10, 9000], glass: [99, 6000, 150],
 };
 
-const request = (material: MaterialKey): MatchRequest => {
-  const [minPurity, tonnesPerMonth, maxPriceAud] = DEFAULTS[material];
-  return { material, minPurity, tonnesPerMonth, maxPriceAud, site: HOME_SITE };
+const requirement = (material: MaterialKey): Requirement => {
+  const [minPurity, tonnesPerMonth, perT] = DEFAULTS[material];
+  return { material, minPurity, tonnesPerMonth, budgetAud: tonnesPerMonth * perT };
 };
+
+type Tab = 'ranked' | 'combine';
 
 export function Matches() {
-  const [draft, setDraft] = useState<MatchRequest>(() => request('copper'));
-  const [submitted, setSubmitted] = useState<MatchRequest>(draft);
-  const { data, loading, error } = useAsync(() => api.findMatches(submitted), [submitted]);
+  const [params, setParams] = useSearchParams();
+  const tab: Tab = params.get('tab') === 'combine' ? 'combine' : 'ranked';
+  const initialMaterial = (MATERIAL_KEYS as string[]).includes(params.get('material') ?? '') ? (params.get('material') as MaterialKey) : 'copper';
 
-  const update = (patch: Partial<MatchRequest>) => setDraft(d => ({ ...d, ...patch }));
+  const [draft, setDraft] = useState<Requirement>(() => requirement(initialMaterial));
+  const [submitted, setSubmitted] = useState<Requirement>(draft);
+  const ceiling = submitted.tonnesPerMonth ? submitted.budgetAud / submitted.tonnesPerMonth : 0;
+
+  const ranked = useAsync(
+    () => api.findMatches({ material: submitted.material, minPurity: submitted.minPurity, tonnesPerMonth: submitted.tonnesPerMonth, maxPriceAud: ceiling, site: HOME_SITE }),
+    [submitted],
+  );
+  const supply = useAsync(() => api.listListings('supply', HOME_SITE), []);
+
+  const update = (patch: Partial<Requirement>) => setDraft(d => ({ ...d, ...patch }));
   const onSubmit = (e: FormEvent) => { e.preventDefault(); setSubmitted(draft); };
+  const setTab = (t: Tab) => setParams(p => { p.set('tab', t); return p; }, { replace: true });
 
   return (
     <main className="page">
       <div className="page-inner">
         <div className="page-head">
-          <h1>AI matches for your requirement</h1>
-          <p>Describe what your plant needs. CircuLink ranks verified Australian supply by material fit, distance by road, price against virgin feedstock and supplier reliability.</p>
+          <h1>Source recycled material</h1>
+          <p>Describe what your plant needs each month. Rank single suppliers, or let CircuLink split the order across several partners to reach your volume within budget.</p>
         </div>
+
         <div className="matches-grid">
-          <form className="panel form" onSubmit={onSubmit}>
+          <form className="panel form req-form" onSubmit={onSubmit}>
             <h2>Requirement</h2>
             <label className="field">Material
-              <select id="m-material" value={draft.material} onChange={e => { const r = request(e.target.value as MaterialKey); setDraft(r); setSubmitted(r); }}>
+              <select id="m-material" value={draft.material} onChange={e => { const r = requirement(e.target.value as MaterialKey); setDraft(r); setSubmitted(r); }}>
                 {MATERIAL_KEYS.map(k => <option key={k} value={k}>{MATERIALS[k].label}</option>)}
               </select>
             </label>
             <label className="field">Minimum purity (%)
               <input id="m-purity" type="number" step={0.1} min={0} max={100} value={draft.minPurity} onChange={e => update({ minPurity: Number(e.target.value) })} />
             </label>
-            <div className="form-row">
-              <label className="field">Tonnes / month
-                <input id="m-tonnes" type="number" min={1} value={draft.tonnesPerMonth} onChange={e => update({ tonnesPerMonth: Number(e.target.value) })} />
-              </label>
-              <label className="field">Max A$ / t
-                <input id="m-price" type="number" min={1} value={draft.maxPriceAud} onChange={e => update({ maxPriceAud: Number(e.target.value) })} />
-              </label>
-            </div>
+            <label className="field">Demand (tonnes / month)
+              <input id="m-tonnes" type="number" min={1} value={draft.tonnesPerMonth} onChange={e => update({ tonnesPerMonth: Number(e.target.value) })} />
+            </label>
+            <label className="field">Budget (A$ / month, incl. freight)
+              <input id="m-budget" type="number" min={1} step={1000} value={draft.budgetAud} onChange={e => update({ budgetAud: Number(e.target.value) })} />
+              <span className="hint">≈ {aud(draft.tonnesPerMonth ? draft.budgetAud / draft.tonnesPerMonth : 0)} per tonne</span>
+            </label>
             <label className="field">Delivery site
               <input id="m-site" value={`${HOME_SITE.name}, ${HOME_SITE.suburb} ${HOME_SITE.state}`} readOnly />
             </label>
-            <button className="btn btn-primary" type="submit"><Sparkles size={16} />Find matches</button>
-            {isMock && <p className="hint">Demo mode: scores come from a weighted formula in the browser. With VITE_API_URL set, they come from the matching service.</p>}
+            <button className="btn btn-primary" type="submit"><Sparkles size={16} />Update results</button>
+            {isMock && <p className="hint">Demo mode: scores and splits are calculated in the browser. With VITE_API_URL set, ranking comes from the matching service.</p>}
           </form>
 
-          <div className="mlist" aria-live="polite" aria-busy={loading}>
-            {error && <div className="panel empty">Couldn't load matches: {error.message}</div>}
-            {loading && !data && [0, 1, 2].map(i => <div key={i} className="skeleton" style={{ height: 110 }} />)}
-            {data && data.length === 0 && <div className="panel empty">No supply listed for this material yet.</div>}
-            {data?.map((r, i) => {
-              const l = r.listing;
-              return (
-                <article key={l.id} className="mcard" style={{ opacity: loading ? 0.6 : 1 }}>
-                  <span className="rank">#{i + 1}</span>
-                  <div style={{ minWidth: 0 }}>
-                    <h3>
-                      <span className="code small" style={{ '--c': MATERIALS[l.material].color } as CSSProperties}>{MATERIALS[l.material].code}</span>
-                      <Link to={`/listing/${l.id}`}>{l.company}</Link>
-                      {l.verified && <span className="verified"><BadgeCheck size={15} /></span>}
-                    </h3>
-                    <p>{l.grade} · <span className="num">{fmtInt(l.tonnes)} t/{per(l.frequency)}</span> · <span className="num">{aud(l.priceAud)}/t</span> · {l.suburb}, {l.state}</p>
-                    <p className="why">{r.reasons.join(' · ')}</p>
-                  </div>
-                  <div className="bars">
-                    <div className="total"><span>Match score</span><b>{r.score}</b></div>
-                    {(['material', 'distance', 'price', 'reliability'] as const).map(k => (
-                      <div key={k} className="bar">
-                        <span style={{ textTransform: 'capitalize' }}>{k}</span>
-                        <div className="track"><div className="fill" style={{ width: `${r.breakdown[k]}%` }} /></div>
-                        <span className="num">{r.breakdown[k]}</span>
+          <div className="stack">
+            <div className="tabs" role="tablist">
+              <button role="tab" aria-selected={tab === 'ranked'} onClick={() => setTab('ranked')}><ListOrdered size={16} />Ranked suppliers</button>
+              <button role="tab" aria-selected={tab === 'combine'} onClick={() => setTab('combine')}><Layers3 size={16} />Combine suppliers</button>
+            </div>
+
+            {tab === 'combine' ? (
+              supply.data
+                ? <CombinePlanner supply={supply.data} request={{ ...submitted, site: HOME_SITE }} />
+                : <div className="skeleton" style={{ height: 240 }} />
+            ) : (
+              <div className="mlist" aria-live="polite" aria-busy={ranked.loading}>
+                {ranked.error && <div className="panel empty">Couldn't load matches: {ranked.error.message}</div>}
+                {ranked.loading && !ranked.data && [0, 1, 2].map(i => <div key={i} className="skeleton" style={{ height: 110 }} />)}
+                {ranked.data && ranked.data.length === 0 && <div className="panel empty">No supply listed for this material yet.</div>}
+                {ranked.data?.map((r, i) => {
+                  const l = r.listing;
+                  return (
+                    <article key={l.id} className="mcard" style={{ opacity: ranked.loading ? 0.6 : 1 }}>
+                      <span className="rank">#{i + 1}</span>
+                      <div style={{ minWidth: 0 }}>
+                        <h3>
+                          <span className="code small" style={{ '--c': MATERIALS[l.material].color } as CSSProperties}>{MATERIALS[l.material].code}</span>
+                          <Link to={`/listing/${l.id}`}>{l.company}</Link>
+                          {l.verified && <span className="verified"><BadgeCheck size={15} /></span>}
+                        </h3>
+                        <p>{l.grade} · <span className="num">{fmtInt(l.tonnes)} t/{per(l.frequency)}</span> · <span className="num">{aud(l.priceAud)}/t</span> · {l.suburb}, {l.state}</p>
+                        <p className="why">{r.reasons.join(' · ')}</p>
                       </div>
-                    ))}
-                  </div>
-                </article>
-              );
-            })}
+                      <div className="bars">
+                        <div className="total"><span>Match score</span><b>{r.score}</b></div>
+                        {(['material', 'distance', 'price', 'reliability'] as const).map(k => (
+                          <div key={k} className="bar">
+                            <span style={{ textTransform: 'capitalize' }}>{k}</span>
+                            <div className="track"><div className="fill" style={{ width: `${r.breakdown[k]}%` }} /></div>
+                            <span className="num">{r.breakdown[k]}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -99,3 +99,10 @@ All breakdown values are 0–100. The UI shows `material`, `distance`, `price` a
 ```
 
 Set `isSample: false` once the numbers come from real trades; the UI then drops the "Sample" badges.
+
+## Computed in the browser (no endpoint yet)
+
+These run on top of the endpoints above, so the backend does not need to provide them. If it wants to take them over later, these are the shapes:
+
+- **Freight estimate** (`src/lib/logistics.ts`): from tonnes per month, road km, truck type and whether the truck returns empty, it produces trips, A$ per month, A$ per tonne and t CO2e. Rates are indicative.
+- **Combined order** (`src/lib/sourcing.ts`): from material, min purity, tonnes per month, budget (A$ per month including freight), site, max partners, verified-only and strategy (`cost` | `fewest` | `emissions`), it produces lines of `{ listing, tonnes, freight, materialCost, total, landedPerTonne }` plus totals, shortfall and budget left. A future `POST /orders/plan` could return the same.
