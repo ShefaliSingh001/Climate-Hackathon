@@ -5,6 +5,47 @@ Anyone (or any Claude session) picking up the frontend should read this before s
 
 ---
 
+## 2026-10-03: "Data and guidance from" logo strip on the homepage
+
+**What**
+- New `components/home/PartnerStrip.tsx`, placed directly under the hero. It is a slowly scrolling logo strip (CSS marquee, 40 s loop) headed "Data and guidance from". It shows:
+  - ABN Lookup: business verification.
+  - ACCC: consumer law guidance.
+  - DCCEEW: National Waste Policy.
+- It pauses on hover and shows a static, centred row under reduced motion. Duplicate copies are hidden from screen readers.
+- A note under the strip says the logos do not imply endorsement.
+- The logos are in `public/partners/` (WebP from the team-supplied images). `public/partners/README.md` records why each is shown and the permission needed.
+
+**Why**
+- The team asked for a moving logo carousel. The label was softened from "In compliance with" to "Data and guidance from", because ResourceX has not been assessed or approved by these bodies.
+
+**Open items (must do before any public use)**
+- The ABN Lookup and DCCEEW logos contain the Commonwealth Coat of Arms, which needs permission from the Department of the Prime Minister and Cabinet. The ACCC logo needs ACCC permission. Without permission, replace the strip with text-only references.
+- The supplied logos are small (max 1106 px wide). They are shown at 56 px high, so they look sharp, but get official vector versions if permission is granted.
+
+---
+
+## 2026-10-03: Real photos on the homepage
+
+**What**
+- Four team-supplied photos are in `public/images/` as WebP (max 1600 px wide); credits are in `public/images/CREDITS.md`.
+- `pages/Home.tsx` `Photo` now renders a real image (lazy-loaded, explicit size, descriptive alt text) instead of a placeholder:
+  - The problem: `scrap-yard.webp`.
+  - Step 1 List: `sorting-line.webp`.
+  - Step 2 Match: `copper-granules.webp`.
+  - Step 3 Deliver: `truck.webp`.
+- There are 6 photo slots and 4 photos, so the two "Who it's for" cards drop their photo band and get a brand icon tile (Recycle and Factory) instead of repeating images.
+- Step photos zoom slightly on hover (off under reduced motion). Placeholder-label styles were removed from `styles/home.css`.
+
+**Why**
+- The team supplied photos to replace the placeholders.
+
+**Open items**
+- Confirm the licence and credit for each photo before a public launch (see `CREDITS.md`). The truck photo looks like an overseas highway, so swap it for an Australian one if available.
+- `scrap-yard.webp` is about 340 KB because the image is very detailed. It lazy-loads below the fold.
+
+---
+
 ## 2026-10-03: Sign-up saves the business to the database
 
 **What**

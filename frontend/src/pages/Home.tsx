@@ -1,19 +1,29 @@
-import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, BadgeCheck, Camera, Check, Layers3, Map as MapIcon, Truck } from 'lucide-react';
+import { ArrowRight, BadgeCheck, Check, Factory, Layers3, Map as MapIcon, Recycle, Truck } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
 import { DotField } from '../components/brand/DotField';
 import { Logo } from '../components/brand/Logo';
 import { ACT_PATH, HOME_XY, NSW_PATH, PINS } from '../components/home/nswMap';
+import { PartnerStrip } from '../components/home/PartnerStrip';
 import { MATERIALS } from '../lib/materials';
 import type { MaterialKey } from '../api/types';
 import '../styles/home.css';
 
-/** Stock-photo slot. Swap the label for an <img> once licensed photos are in public/images/. */
-function Photo({ label, tone, className = '' }: { label: string; tone: string; className?: string }) {
+// Photos are in public/images/ (see CREDITS.md there).
+const PHOTOS = {
+  scrapYard: { src: '/images/scrap-yard.webp', w: 1280, h: 853, alt: 'Piles of mixed scrap metal waiting to be sorted at a recovery yard' },
+  sortingLine: { src: '/images/sorting-line.webp', w: 800, h: 533, alt: 'Workers sorting cardboard on a conveyor at a materials recovery facility' },
+  copper: { src: '/images/copper-granules.webp', w: 1600, h: 1067, alt: 'Close-up of recycled copper granules' },
+  truck: { src: '/images/truck.webp', w: 1439, h: 1079, alt: 'A semi-trailer truck on an open highway' },
+};
+type PhotoKey = keyof typeof PHOTOS;
+
+function Photo({ name, className = '' }: { name: PhotoKey; className?: string }) {
+  const p = PHOTOS[name];
   return (
-    <div className={`photo ${className}`} style={{ '--ph': tone } as CSSProperties} role="img" aria-label={`Photo placeholder: ${label}`}>
-      <span className="ph-label"><Camera size={14} /><span>Photo placeholder · {label}</span></span>
+    <div className={`photo ${className}`}>
+      <img src={p.src} width={p.w} height={p.h} alt={p.alt} loading="lazy" decoding="async" />
     </div>
   );
 }
@@ -120,9 +130,11 @@ export function Home() {
         </div>
       </section>
 
+      <PartnerStrip />
+
       <section className="band" id="problem">
         <div className="wrap problem-grid">
-          <Reveal><Photo className="problem-photo" tone="#5A4636" label="Sorted ferrous scrap piles · 1800 × 1400" /></Reveal>
+          <Reveal><Photo className="problem-photo" name="scrapYard" /></Reveal>
           <Reveal>
             <span className="eyebrow">The problem</span>
             <h2 className="h2-left">The material exists. Buyers can't find it.</h2>
@@ -145,12 +157,12 @@ export function Home() {
           </Reveal>
           <div className="steps">
             {[
-              { n: 1, t: 'List', tone: '#4E5B52', ph: 'Sorting line, materials recovery facility', p: 'Recyclers publish material, grade, monthly volume, price and yard location in a few minutes.', li: ['ABN and EPA licence checked', 'Pinned on the map by suburb'] },
-              { n: 2, t: 'Match', tone: '#7A4A2C', ph: 'Copper granules, close-up', p: "Manufacturers enter demand and budget. The matching model ranks suppliers on grade, certification, delivery window and price.", li: ['Grade and certification filters', 'Filter by state, starting with NSW'] },
-              { n: 3, t: 'Deliver', tone: '#3E4E5C', ph: 'B-double on the Hume Highway', p: 'See the landed cost with freight included, then split one order across several partners to hit your volume within budget.', li: ['Truck type, trips and freight per tonne', 'Quote requests to every partner at once'] },
+              { n: 1, t: 'List', photo: 'sortingLine' as PhotoKey, p: 'Recyclers publish material, grade, monthly volume, price and yard location in a few minutes.', li: ['ABN and EPA licence checked', 'Pinned on the map by suburb'] },
+              { n: 2, t: 'Match', photo: 'copper' as PhotoKey, p: "Manufacturers enter demand and budget. The matching model ranks suppliers on grade, certification, delivery window and price.", li: ['Grade and certification filters', 'Filter by state, starting with NSW'] },
+              { n: 3, t: 'Deliver', photo: 'truck' as PhotoKey, p: 'See the landed cost with freight included, then split one order across several partners to hit your volume within budget.', li: ['Truck type, trips and freight per tonne', 'Quote requests to every partner at once'] },
             ].map(s => (
               <Reveal key={s.n} className="step">
-                <Photo tone={s.tone} label={s.ph} />
+                <Photo name={s.photo} />
                 <div><span className="step-num">Step {s.n}</span><h3>{s.t}</h3></div>
                 <p>{s.p}</p>
                 <ul>{s.li.map(x => <li key={x}>{x}</li>)}</ul>
@@ -196,8 +208,8 @@ export function Home() {
           </Reveal>
           <div className="audience">
             <Reveal className="aud">
-              <Photo tone="#4A5246" label="Scrap yard with material handler" />
               <div className="aud-body">
+                <span className="aud-icon"><Recycle size={22} /></span>
                 <span className="eyebrow">Recyclers and producers</span>
                 <h3>Sell recovered material at its real value</h3>
                 <p>Reach manufacturers looking for your grade, without brokers.</p>
@@ -208,8 +220,8 @@ export function Home() {
               </div>
             </Reveal>
             <Reveal className="aud">
-              <Photo tone="#3F4A55" label="Aluminium extrusion line" />
               <div className="aud-body">
+                <span className="aud-icon"><Factory size={22} /></span>
                 <span className="eyebrow">Manufacturers</span>
                 <h3>Buy recycled with the numbers in front of you</h3>
                 <p>Compare grade, certification and landed cost against virgin before you call anyone.</p>
@@ -255,7 +267,7 @@ export function Home() {
       <footer className="home-footer">
         <div className="wrap">
           <Logo size={20} tone="dark" />
-          <span>Prototype for the COP31 Green Industrialisation priority · Sample listings are fictional · Section photos are placeholders</span>
+          <span>Prototype for the COP31 Green Industrialisation priority · Sample listings are fictional</span>
         </div>
       </footer>
     </div>
