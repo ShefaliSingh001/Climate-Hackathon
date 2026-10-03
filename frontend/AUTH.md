@@ -12,7 +12,7 @@ Login runs entirely in the browser (`src/auth/mockAuth.ts`). Nothing is sent to 
   | Seller | Hunter Copper Reclaim | Kooragang NSW | `99000000002` |
 
   ABNs starting `99000` are placeholders, not real businesses.
-- **Sign-up:** creates an account in `localStorage` (key `resourcex.accounts`). The password is SHA-256 hashed first. This is for demos only and is not secure storage.
+- **Sign-up:** first saves the business to the backend with `POST /listings`. A seller becomes a `producers` row (material, grade, tonnes, price, compliance); a buyer becomes a `manufacturers` row (material, grade, tonnes, budget, order-by and deliver-by dates). It then creates the login in `localStorage` (key `resourcex.accounts`). The password is SHA-256 hashed first. This is for demos only and is not secure storage. The email is checked first (`isEmailAvailable`), so a taken email writes nothing to the database.
 - **Session:** stored under `resourcex.session`.
 - **Listings created in demo mode:** kept under `resourcex.createdListings`.
 

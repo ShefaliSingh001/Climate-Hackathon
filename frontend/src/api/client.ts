@@ -20,7 +20,11 @@ async function http<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: { 'Content-Type': 'application/json', ...init?.headers },
   });
-  if (!res.ok) throw new Error(`${init?.method ?? 'GET'} ${path} failed with ${res.status}`);
+  if (!res.ok) {
+    // The backend sends { "error": "..." }; fall back to the status when it doesn't.
+    const body = await res.json().catch(() => null) as { error?: string } | null;
+    throw new Error(body?.error ?? `${init?.method ?? 'GET'} ${path} failed with ${res.status}`);
+  }
   return res.json() as Promise<T>;
 }
 

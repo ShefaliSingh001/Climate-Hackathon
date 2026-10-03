@@ -62,10 +62,15 @@ export const mockAuth: AuthClient = {
     return DEMO_ACCOUNTS[role];
   },
 
+  async isEmailAvailable(email) {
+    const e = email.trim().toLowerCase();
+    return !read<Stored[]>(ACCOUNTS_KEY, []).some(u => u.account.email === e) && !Object.values(DEMO_ACCOUNTS).some(d => d.email === e);
+  },
+
   async signUp(input: SignUpInput) {
     const users = read<Stored[]>(ACCOUNTS_KEY, []);
     const email = input.email.trim().toLowerCase();
-    if (users.some(u => u.account.email === email) || Object.values(DEMO_ACCOUNTS).some(d => d.email === email)) {
+    if (!(await mockAuth.isEmailAvailable(email))) {
       throw new Error('An account with this email already exists. Log in instead.');
     }
     const account: Account = {

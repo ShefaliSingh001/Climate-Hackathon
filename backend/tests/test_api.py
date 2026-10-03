@@ -94,3 +94,35 @@ def test_create_listing_and_enquiry(client):
 def test_bad_request_is_json_error(client):
     r = client.post("/orders/plan", json={"material": "gold", "tonnesPerMonth": 1, "budgetAud": 1, "site": SITE})
     assert r.status_code == 422 and "material" in r.json()["error"]
+
+
+def test_new_producer_registration_saved(client):
+    body = {"kind": "supply", "company": "New Recycler Pty Ltd", "abn": "22222222222", "suburb": "Smithfield", "state": "NSW",
+            "lat": -33.85, "lng": 150.94, "material": "steel", "grade": "Medium quality", "form": "Steel offcuts and swarf",
+            "tonnes": 120, "frequency": "Monthly", "priceAud": 285, "certifications": ["Cert A", "Cert C"],
+            "website": "https://example.com.au", "availableFrom": "2026-11-01", "availableTo": "2026-12-31"}
+    created = client.post("/listings", json=body)
+    assert created.status_code == 201
+    listing = created.json()
+    assert listing["kind"] == "supply" and listing["abn"] == "22222222222" and listing["gradeKey"] == "medium"
+    assert listing["availableFrom"] == "2026-11-01" and listing["certifications"] == ["Cert A", "Cert C"]
+    # It is now a producer the marketplace and the matching model see.
+    assert any(l["id"] == listing["id"] for l in client.get("/listings", params={"kind": "supply"}).json())
+    plan = client.post("/orders/plan", json={"material": "steel", "grade": "medium", "tonnesPerMonth": 500, "budgetAud": 200000,
+                                             "site": SITE, "maxPartners": 8}).json()
+    assert all(e["listingId"] != listing["id"] for e in plan["excluded"])
+
+
+def test_new_manufacturer_registration_saved(client):
+    body = {"kind": "demand", "company": "New Fabricator Pty Ltd", "abn": "11111111111", "suburb": "Penrith", "state": "NSW",
+            "lat": -33.75, "lng": 150.69, "material": "aluminium", "grade": "high", "form": "Window frames",
+            "tonnes": 80, "frequency": "Monthly", "priceAud": 0, "budgetAud": 128000,
+            "orderBy": "2026-11-10", "deliverBy": "2026-11-28"}
+    created = client.post("/listings", json=body)
+    assert created.status_code == 201
+    listing = created.json()
+    assert listing["kind"] == "demand" and listing["priceAud"] == 1600  # budget / tonnes
+    assert listing["orderBy"] == "2026-11-10" and listing["deliverBy"] == "2026-11-28" and listing["form"] == "Window frames"
+    assert client.get(f"/listings/{listing['id']}").json()["company"] == "New Fabricator Pty Ltd"
+    bad = client.post("/listings", json={**body, "deliverBy": "2026-11-01"})
+    assert bad.status_code == 422 and "deliverBy" in bad.json()["error"]

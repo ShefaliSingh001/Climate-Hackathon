@@ -5,6 +5,38 @@ Anyone (or any Claude session) picking up the frontend should read this before s
 
 ---
 
+## 2026-10-03: Sign-up saves the business to the database
+
+**What**
+- `/signup` has a new section, "What you sell" (sellers) or "What you need" (buyers), with the fields the backend tables need:
+  - **Seller → `producers` row:** output material, output grade, input materials processed, tonnes/month, price A$/t, compliance (Cert A–E, the dataset's tags), website.
+  - **Buyer → `manufacturers` row:** required material, grade required, what they make (optional), tonnes/month, total budget (A$, excl. freight), order-by and deliver-by dates, website.
+- On submit:
+  1. Checks the email is free (`AuthClient.isEmailAvailable`).
+  2. Saves the business with `api.createListing`.
+  3. Creates the login.
+- A taken email or a backend error stops the sign-up before anything is written. With the API on, the materials are the five in the dataset (`DATASET_MATERIALS`).
+- New sellers now land on My listings (the "already signed in" redirect was firing first).
+- `client.ts` shows the backend's `{ error }` message instead of only the status code.
+- `Listing` gains optional `availableFrom`, `availableTo`, `budgetAud`, `orderBy` and `deliverBy`, which the backend already returns.
+
+**Why**
+- New producers and manufacturers should exist in the database the moment they register, so the map and the matching model include them.
+
+**Files**
+- `src/pages/Auth.tsx`
+- `src/auth/types.ts`, `mockAuth.ts`, `AuthProvider.tsx`
+- `src/api/client.ts`, `types.ts`
+- `src/lib/materials.ts`
+- `src/styles/app.css`
+- `API_CONTRACT.md`, `AUTH.md`
+
+**Open items**
+- Accounts are still browser-only. A buyer's own requirement isn't shown to them yet, because buyers see supply only.
+- One sign-up creates one listing; sellers add more from List material.
+
+---
+
 ## 2026-10-03: ResourceX brand, login, buyer/seller views, homepage
 
 **What**

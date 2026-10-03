@@ -24,4 +24,7 @@ export const MATERIALS: Record<MaterialKey, MaterialInfo> = {
 
 export const GRADES: Record<GradeKey, string> = { high: 'High quality', medium: 'Medium quality', short_use: 'Short use' };
 
+/** Materials the backend's NSW dataset trades today. */
+export const DATASET_MATERIALS: MaterialKey[] = ['steel', 'aluminium', 'copper', 'brass', 'alloys'];
+
 export const MATERIAL_KEYS = Object.keys(MATERIALS) as MaterialKey[];

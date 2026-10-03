@@ -9,6 +9,7 @@ Then set VITE_API_URL=http://localhost:8000 in frontend/.env.local. Docs at http
 import datetime as dt
 import json
 import os
+import sqlite3
 import statistics
 from typing import Literal
 
@@ -47,6 +48,12 @@ PERIODS_PER_MONTH = {"Weekly": 52 / 12, "Fortnightly": 26 / 12, "Monthly": 1}
 @app.exception_handler(HTTPException)
 async def http_error(_: Request, exc: HTTPException):
     return JSONResponse(status_code=exc.status_code, content={"error": exc.detail})
+
+
+@app.exception_handler(sqlite3.IntegrityError)
+async def integrity_error(_: Request, exc: sqlite3.IntegrityError):
+    # A database CHECK or foreign key the request validation didn't catch.
+    return JSONResponse(status_code=422, content={"error": f"Rejected by the database: {exc}"})
 
 
 @app.exception_handler(RequestValidationError)
@@ -105,7 +112,14 @@ class NewListing(BaseModel):
     frequency: Literal["Weekly", "Fortnightly", "Monthly"] = "Monthly"
     priceAud: float = Field(ge=0)
     certifications: list[str] = Field(default_factory=list)
-    website: str | None = None
+    website: str | None = Field(default=None, max_length=300)
+    # Supply: the period the tonnes are available. Default: today to 90 days out.
+    availableFrom: dt.date | None = None
+    availableTo: dt.date | None = None
+    # Demand: total tender budget (default priceAud x tonnes) and timeframe (default: today, 30 days out).
+    budgetAud: float | None = Field(default=None, ge=0)
+    orderBy: dt.date | None = None
+    deliverBy: dt.date | None = None
 
     model_config = {"extra": "ignore"}  # the UI also sends purity, virginPriceAud, ...
 
@@ -170,20 +184,28 @@ def create_listing(body: NewListing):
         raise HTTPException(status_code=422, detail="grade must be one of: High quality, Medium quality, Short use")
     monthly = round(body.tonnes * PERIODS_PER_MONTH[body.frequency], 2)
     today = dt.date.today()
-    common = dict(name=body.company, abn=body.abn, website=body.website, locality=body.suburb, state=body.state,
-                  lat=body.lat, lng=body.lng, geo_source="user")
+    common = dict(name=body.company.strip(), abn=body.abn, website=(body.website or "").strip() or None,
+                  locality=body.suburb.strip(), state=body.state, lat=body.lat, lng=body.lng, geo_source="user")
     if body.kind == "supply":
+        start = body.availableFrom or today
+        end = body.availableTo or start + dt.timedelta(days=90)
+        if end < start:
+            raise HTTPException(status_code=422, detail="availableTo must not be before availableFrom")
         table, row = "producers", dict(
-            common, input_materials=body.form or body.material, output_material=body.material,
+            common, input_materials=body.form.strip() or body.material, output_material=body.material,
             output_quantity_t=monthly, output_grade=grade, compliance=json.dumps(body.certifications),
-            price_aud_per_t=body.priceAud, supply_start=today.isoformat(),
-            supply_end=(today + dt.timedelta(days=90)).isoformat())
+            price_aud_per_t=body.priceAud, supply_start=start.isoformat(), supply_end=end.isoformat())
     else:
+        order_by = body.orderBy or today
+        deliver_by = body.deliverBy or order_by + dt.timedelta(days=30)
+        if deliver_by < order_by:
+            raise HTTPException(status_code=422, detail="deliverBy must not be before orderBy")
+        budget = body.budgetAud if body.budgetAud is not None else body.priceAud * monthly
         table, row = "manufacturers", dict(
-            common, product=body.form or None, required_material=body.material, required_quantity_t=monthly,
-            budget_aud=round(body.priceAud * monthly, 2), output_grade_request=grade,
-            order_by=today.isoformat(), deliver_by=(today + dt.timedelta(days=30)).isoformat(),
-            purchase_start=today.isoformat(), purchase_end=(today + dt.timedelta(days=90)).isoformat())
+            common, product=body.form.strip() or None, required_material=body.material, required_quantity_t=monthly,
+            budget_aud=round(budget, 2), output_grade_request=grade,
+            order_by=order_by.isoformat(), deliver_by=deliver_by.isoformat(),
+            purchase_start=min(today, order_by).isoformat(), purchase_end=deliver_by.isoformat())
     with connect() as db:
         cur = db.execute(f"insert into {table} ({', '.join(row)}) values ({', '.join('?' * len(row))})", list(row.values()))
         return get_listing(db, f"{'p' if table == 'producers' else 'm'}{cur.lastrowid}")

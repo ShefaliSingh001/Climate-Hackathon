@@ -41,6 +41,13 @@ Then point the frontend at it: in `frontend/.env.local` set `VITE_API_URL=http:/
   - `inBestPlan` marks producers in the model's cheapest combination.
 - **Card scores** (`matchScore` on `GET /listings`): the same score with no specific requirement.
 
+## Registration
+
+Signing up on the website saves the business through `POST /listings`. A seller becomes a `producers` row and a buyer a
+`manufacturers` row, with `is_synthetic = 0` and `geo_source = 'user'`, so re-running the loader keeps them. New
+producers are matched straight away. Logins themselves are still browser-only (`frontend/AUTH.md`), so the API trusts
+whatever it is sent. Running the app locally therefore changes `backend/db/circulink.db`; don't commit test sign-ups.
+
 Not modelled: transport cost (the UI estimates freight separately), tax, and reserving stock across several
 tenders. "Any grade" passes every producer to the model with the same grade, so the grade check is skipped.
 
