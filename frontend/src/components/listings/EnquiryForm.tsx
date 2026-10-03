@@ -2,14 +2,16 @@ import { useState, type FormEvent } from 'react';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { api, isMock } from '../../api/client';
 import type { Listing } from '../../api/types';
+import { useSite } from '../../auth/AuthProvider';
 
 export function EnquiryForm({ listing: l, monthly }: { listing: Listing; monthly: number }) {
   const isSupply = l.kind === 'supply';
+  const site = useSite();
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [tonnes, setTonnes] = useState(Math.min(Math.round(monthly), 30));
   const [first, setFirst] = useState('November 2026');
   const [message, setMessage] = useState(
-    isSupply ? 'We need assay certificates with each load, delivered to Wetherill Park NSW 2164.' : 'We can supply from Wetherill Park NSW with assay certificates.',
+    isSupply ? `We need assay certificates with each load, delivered to ${site.suburb} ${site.state}.` : `We can supply from ${site.suburb} ${site.state} with assay certificates.`,
   );
 
   async function submit(e: FormEvent) {

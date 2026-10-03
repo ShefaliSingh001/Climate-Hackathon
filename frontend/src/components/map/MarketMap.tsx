@@ -6,7 +6,8 @@ import { Crosshair, MapPin, Minus, Plus } from 'lucide-react';
 import auStates from '../../data/au-states.json';
 import type { ListingView } from '../../hooks/useListings';
 import { MATERIALS } from '../../lib/materials';
-import { HOME_SITE, regionByCode } from '../../lib/regions';
+import { regionByCode } from '../../lib/regions';
+import { useSite } from '../../auth/AuthProvider';
 import { ROAD_FACTOR } from '../../lib/geo';
 import { aud, fmtInt, per } from '../../lib/format';
 import { useMarket } from '../../state/store';
@@ -33,6 +34,7 @@ function pinIcon(l: ListingView, state: 'hover' | '') {
 /** Re-fits the map when the region changes, and exposes zoom/locate buttons. */
 function MapControls() {
   const map = useMap();
+  const HOME_SITE = useSite();
   const region = useMarket(s => s.region);
   const fitToken = useMarket(s => s.fitToken);
 
@@ -54,6 +56,7 @@ function MapControls() {
 }
 
 export function MarketMap({ listings, onOpen }: Props) {
+  const HOME_SITE = useSite();
   const { layer, hoveredId, region, radiusKm, mode, set } = useMarket();
   const def = LAYERS[layer];
 
@@ -62,10 +65,10 @@ export function MarketMap({ listings, onOpen }: Props) {
   const stateStyle = (f?: Feature) => {
     const active = region !== 'AU' && f?.properties?.code === region;
     return {
-      color: layer === 'satellite' || layer === 'dark' ? '#8FE0B5' : '#1F6B4F',
+      color: layer === 'satellite' || layer === 'dark' ? '#A8CF6A' : '#4F7A26',
       weight: active ? 2 : 0,
       dashArray: '6 4',
-      fillColor: '#2FA36B',
+      fillColor: '#7FAE45',
       fillOpacity: active ? 0.05 : 0,
       interactive: false,
     };
@@ -90,7 +93,7 @@ export function MarketMap({ listings, onOpen }: Props) {
           <Circle
             center={[HOME_SITE.lat, HOME_SITE.lng]}
             radius={(radiusKm / ROAD_FACTOR) * 1000}
-            pathOptions={{ color: '#1F6B4F', weight: 1.5, dashArray: '4 4', fillColor: '#2FA36B', fillOpacity: 0.06, interactive: false }}
+            pathOptions={{ color: '#4F7A26', weight: 1.5, dashArray: '4 4', fillColor: '#7FAE45', fillOpacity: 0.06, interactive: false }}
           />
         )}
         <Marker position={[HOME_SITE.lat, HOME_SITE.lng]} icon={youIcon} zIndexOffset={2000}>

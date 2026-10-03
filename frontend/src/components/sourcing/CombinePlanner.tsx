@@ -63,7 +63,7 @@ export function CombinePlanner({ supply, request }: Props) {
 
   async function requestAll() {
     await Promise.all(lines.filter(l => l.tonnes > 0).map(l =>
-      api.sendEnquiry(l.listing.id, { tonnesPerMonth: Math.round(l.tonnes), firstDelivery: 'November 2026', message: 'Part of a combined order via CircuLink.' })));
+      api.sendEnquiry(l.listing.id, { tonnesPerMonth: Math.round(l.tonnes), firstDelivery: 'November 2026', message: 'Part of a combined order via ResourceX.' })));
     setSent(true);
   }
 
@@ -200,7 +200,7 @@ export function CombinePlanner({ supply, request }: Props) {
         </section>
       </div>
       <p className="hint">
-        {isMock ? 'Demo mode: the split is a quick greedy estimate in the browser.' : 'The split comes from the CircuLink matching model: exact material and grade, every partner available in the delivery window, the exact tonnes and the material budget.'}
+        {isMock ? 'Demo mode: the split is a quick greedy estimate in the browser.' : 'The split comes from the ResourceX matching model: exact material and grade, every partner available in the delivery window, the exact tonnes and the material budget.'}
         {' '}Landed cost = supplier price + estimated road freight to your site. Freight uses the cheapest truck per partner and assumes an empty return leg.
       </p>
     </div>

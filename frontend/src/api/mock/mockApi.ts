@@ -4,7 +4,16 @@ import seed from './listings.json';
 import { baselineScore, scoreListing } from './scoring';
 import { planOrder } from '../../lib/sourcing';
 
-const listings: Listing[] = (seed as Listing[]).map(l => ({ ...l }));
+// Listings created in demo mode are kept in this browser so they survive a reload.
+const CREATED_KEY = 'resourcex.createdListings';
+function loadCreated(): Listing[] {
+  try { return JSON.parse(localStorage.getItem(CREATED_KEY) ?? '[]') as Listing[]; } catch { return []; }
+}
+function saveCreated(items: Listing[]) {
+  try { localStorage.setItem(CREATED_KEY, JSON.stringify(items)); } catch { /* storage blocked: keep in memory */ }
+}
+const created: Listing[] = loadCreated();
+const listings: Listing[] = [...(seed as Listing[]).map(l => ({ ...l })), ...created];
 const wait = <T,>(value: T, ms = 150) => new Promise<T>(res => setTimeout(() => res(value), ms));
 
 export const mockApi: Api = {
@@ -19,9 +28,11 @@ export const mockApi: Api = {
   },
 
   async createListing(input: NewListing) {
-    const created: Listing = { ...input, id: `new-${Date.now()}`, verified: false, monthsOnPlatform: 0 };
-    listings.push(created);
-    return wait(created, 300);
+    const listing: Listing = { ...input, id: `new-${Date.now()}`, verified: false, monthsOnPlatform: 0 };
+    listings.push(listing);
+    created.push(listing);
+    saveCreated(created);
+    return wait(listing, 300);
   },
 
   async findMatches(req: MatchRequest): Promise<MatchResult[]> {

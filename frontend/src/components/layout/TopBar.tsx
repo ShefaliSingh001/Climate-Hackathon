@@ -1,47 +1,87 @@
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Plus, RefreshCcw, Search } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { ChevronDown, LogOut, MapPin, Search } from 'lucide-react';
+import { useAuth } from '../../auth/AuthProvider';
 import { useMarket } from '../../state/store';
-import { HOME_SITE } from '../../lib/regions';
+import { Logo } from '../brand/Logo';
 
-export const APP_NAME = 'CircuLink';
+export { APP_NAME } from '../brand/Logo';
+
+const NAV = {
+  buyer: [
+    { to: '/marketplace', label: 'Supply map' },
+    { to: '/sourcing', label: 'Sourcing' },
+    { to: '/impact', label: 'Impact' },
+  ],
+  seller: [
+    { to: '/marketplace', label: 'Buyer requests' },
+    { to: '/my-listings', label: 'My listings' },
+    { to: '/impact', label: 'Impact' },
+  ],
+};
 
 export function TopBar() {
-  const { mode, query, set } = useMarket();
+  const { account, signOut } = useAuth();
+  const { query, set } = useMarket();
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const onMarket = pathname === '/' || pathname.startsWith('/listing');
+  const [menu, setMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const goMarket = () => { if (!onMarket) navigate('/'); };
+  useEffect(() => {
+    if (!menu) return;
+    const close = (e: MouseEvent) => { if (!menuRef.current?.contains(e.target as Node)) setMenu(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenu(false); };
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc); };
+  }, [menu]);
+
+  if (!account) return null;
+  const isBuyer = account.role === 'buyer';
+  const initials = account.company.split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+  const onMap = pathname === '/marketplace' || pathname.startsWith('/listing');
 
   return (
     <header className="topbar">
-      <Link to="/" className="brand">
-        <span className="brand-mark" aria-hidden="true"><RefreshCcw size={17} strokeWidth={2.2} /></span>
-        <span>{APP_NAME}<small>Secondary materials exchange · Australia</small></span>
-      </Link>
+      <Logo to="/" size={24} />
       <nav className="nav" aria-label="Main">
-        <NavLink to="/" end className={() => (onMarket ? 'active' : '')}>Marketplace</NavLink>
-        <NavLink to="/matches">Sourcing</NavLink>
-        <NavLink to="/impact">Impact</NavLink>
+        {NAV[account.role].map(n => (
+          <NavLink key={n.to} to={n.to} className={({ isActive }) => (isActive || (n.to === '/marketplace' && onMap) ? 'active' : '')}>{n.label}</NavLink>
+        ))}
       </nav>
       <label className="search">
         <Search size={16} />
-        <span className="sr-only">Search materials and companies</span>
+        <span className="sr-only">Search</span>
         <input
           id="global-search"
           type="search"
           value={query}
-          placeholder={mode === 'supply' ? 'Search copper, PET flake, HMS steel, suburbs…' : 'Search buyer requests by material or company…'}
-          onChange={e => { set({ query: e.target.value }); goMarket(); }}
+          placeholder={isBuyer ? 'Search copper, HMS steel, suburbs…' : 'Search buyer requests by material or company…'}
+          onChange={e => { set({ query: e.target.value }); if (pathname !== '/marketplace') navigate('/marketplace'); }}
         />
       </label>
       <div className="spacer" />
-      <div className="seg" role="group" aria-label="I want to">
-        <button aria-pressed={mode === 'supply'} onClick={() => { set({ mode: 'supply', materials: [] }); goMarket(); }}>Buy</button>
-        <button aria-pressed={mode === 'demand'} onClick={() => { set({ mode: 'demand', materials: [] }); goMarket(); }}>Sell</button>
+      <div className="account" ref={menuRef}>
+        <button className="account-btn" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(m => !m)}>
+          <span className="avatar">{initials}</span>
+          <span className="account-name">{account.company}<small>{isBuyer ? 'Buyer' : 'Seller'}</small></span>
+          <ChevronDown size={15} />
+        </button>
+        {menu && (
+          <div className="account-menu" role="menu">
+            <div className="account-head">
+              <b>{account.name}</b>
+              <span>{account.email}</span>
+              <span className={`role-badge ${account.role}`}>{isBuyer ? 'Buyer account' : 'Seller account'}{account.demo ? ' · demo' : ''}</span>
+            </div>
+            <div className="account-row"><MapPin size={14} />{account.site.suburb}, {account.site.state}</div>
+            <button role="menuitem" className="account-row action" onClick={async () => { await signOut(); navigate('/'); }}>
+              <LogOut size={14} />Sign out
+            </button>
+          </div>
+        )}
       </div>
-      <Link to="/sell/new" className="btn btn-primary"><Plus size={16} /><span className="label">List material</span></Link>
-      <div className="avatar" title={`${HOME_SITE.name}, ${HOME_SITE.suburb} ${HOME_SITE.state}`}>WC</div>
     </header>
   );
 }

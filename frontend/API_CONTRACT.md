@@ -51,6 +51,8 @@ If the backend needs a different shape, change `types.ts` + this file in the sam
 
 The backend ids are `p<n>` for producers (supply) and `m<n>` for manufacturers (demand).
 
+The UI finds a seller's own listings by comparing `abn` with the signed-in account's ABN (see `AUTH.md`), so `abn` should be present on every listing.
+
 ## Endpoints
 
 | Method & path | Body / query | Returns |
