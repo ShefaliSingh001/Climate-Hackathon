@@ -59,7 +59,7 @@ The UI finds a seller's own listings by comparing `abn` with the signed-in accou
 | --- | --- | --- |
 | `GET /listings?kind=supply&lat=-33.847&lng=150.9` | `lat`/`lng` = requesting site, used for `matchScore` | `Listing[]` |
 | `GET /listings/{id}` | | `Listing` |
-| `POST /listings` | `Listing` without `id`, `verified`, `monthsOnPlatform`, `matchScore`, plus `abn` (11 digits). Backend `grade` must be `High quality`, `Medium quality` or `Short use` | created `Listing` |
+| `POST /listings` | `Listing` without `id`, `verified`, `monthsOnPlatform`, `matchScore`, plus `abn` (11 digits) and optional `website`. Backend `grade` must be `High quality`, `Medium quality` or `Short use`. Supply may add `availableFrom`/`availableTo` (default today + 90 days); demand may add `budgetAud` (total A$, default `priceAud × tonnes`), `orderBy` and `deliverBy` (ISO dates, default today and +30 days) | created `Listing` (supply → a `producers` row, demand → a `manufacturers` row) |
 | `POST /listings/{id}/enquiries` | `{ "tonnesPerMonth": 30, "firstDelivery": "November 2026", "message": "..." }` | `{ "id": "...", "status": "sent" }` |
 | `POST /matches` | `MatchRequest` (below) | `MatchResult[]`, best first |
 | `POST /orders/plan` | `OrderPlanRequest` (below) | `OrderPlanResult` (below) |

@@ -357,3 +357,7 @@ button { cursor: pointer; }
   .form-row.three { grid-template-columns: 1fr 1fr; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+
+/* Sign-up: business details section */
+.auth-section { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px 14px; margin: 4px 0 0; display: grid; gap: 12px; min-width: 0; }
+.auth-section legend { padding: 0 6px; font-weight: 600; font-size: 14px; color: var(--ink); }

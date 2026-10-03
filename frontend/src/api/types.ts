@@ -43,6 +43,13 @@ export interface Listing {
   website?: string | null;
   /** True when lat/lng is the suburb centre rather than the yard itself. */
   locationApprox?: boolean;
+  /** Supply: period the tonnes are available (ISO dates). Demand: purchase window. */
+  availableFrom?: string | null;
+  availableTo?: string | null;
+  /** Demand only: total tender budget in A$ (priceAud = budget / tonnes) and timeframe (ISO dates). */
+  budgetAud?: number;
+  orderBy?: string;
+  deliverBy?: string;
 }
 
 export interface Site {

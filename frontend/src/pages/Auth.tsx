@@ -1,4 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
+import { api, isMock } from '../api/client';
+import type { MaterialKey, NewListing } from '../api/types';
+import { DATASET_MATERIALS, GRADES, MATERIALS, MATERIAL_KEYS } from '../lib/materials';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Factory, Recycle } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
@@ -91,22 +94,56 @@ export function Login() {
   );
 }
 
+// Compliance tags used by the NSW dataset (demo tags, see backend/README.md).
+const CERTS = ['Cert A', 'Cert B', 'Cert C', 'Cert D', 'Cert E'];
+const SIGNUP_MATERIALS = isMock ? MATERIAL_KEYS : DATASET_MATERIALS;
+
+const isoDay = (offsetDays: number) => {
+  const d = new Date();
+  d.setDate(d.getDate() + offsetDays);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+/** What the business sells (seller) or needs (buyer). Saved as its producers / manufacturers row. */
+interface Business {
+  material: MaterialKey;
+  grade: string;
+  /** Seller: input materials it processes. Buyer: what it makes with the material. */
+  detail: string;
+  tonnes: number;
+  priceAud: number;
+  budgetAud: number;
+  orderBy: string;
+  deliverBy: string;
+  certifications: string[];
+  website: string;
+}
+
 const ROLE_OPTIONS: { role: Role; title: string; text: string; Icon: typeof Factory }[] = [
   { role: 'buyer', title: 'I buy recycled material', text: 'Manufacturers sourcing feedstock', Icon: Factory },
   { role: 'seller', title: 'I sell recovered material', text: 'Recyclers and producers', Icon: Recycle },
 ];
 
 export function Signup() {
-  const { account, signUp } = useAuth();
+  const { account, signUp, isEmailAvailable } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [role, setRole] = useState<Role>(params.get('role') === 'seller' ? 'seller' : 'buyer');
   const [form, setForm] = useState({ company: '', name: '', email: '', password: '', abn: '', place: 0 });
-  const [errors, setErrors] = useState<Partial<Record<keyof typeof form | 'form', string>>>({});
+  const [biz, setBiz] = useState<Business>({
+    material: SIGNUP_MATERIALS[0], grade: GRADES.high, detail: '', tonnes: 50, priceAud: 0, budgetAud: 0,
+    orderBy: isoDay(14), deliverBy: isoDay(45), certifications: ['Cert A'], website: '',
+  });
+  const [errors, setErrors] = useState<Partial<Record<keyof typeof form | keyof Business | 'form', string>>>({});
   const [busy, setBusy] = useState(false);
 
-  if (account) return <Navigate to="/marketplace" replace />;
+  // While submitting, signUp sets the account before navigate() runs; don't let this redirect win.
+  if (account && !busy) return <Navigate to="/marketplace" replace />;
   const update = (patch: Partial<typeof form>) => setForm(f => ({ ...f, ...patch }));
+  const updateBiz = (patch: Partial<Business>) => setBiz(b => ({ ...b, ...patch }));
+  const toggleCert = (c: string) =>
+    updateBiz({ certifications: biz.certifications.includes(c) ? biz.certifications.filter(x => x !== c) : [...biz.certifications, c] });
+  const seller = role === 'seller';
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -116,17 +153,43 @@ export function Signup() {
     if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) errs.email = 'Enter a valid email address.';
     if (form.password.length < 8) errs.password = 'Use at least 8 characters.';
     if (!/^\d{11}$/.test(form.abn.replace(/\s/g, ''))) errs.abn = 'Enter your 11-digit ABN.';
+    if (!(biz.tonnes > 0)) errs.tonnes = 'Enter tonnes per month above zero.';
+    if (seller && !biz.detail.trim()) errs.detail = 'Describe the material you take in, e.g. "Steel offcuts and swarf".';
+    if (seller && !(biz.priceAud > 0)) errs.priceAud = 'Enter your asking price in A$ per tonne.';
+    if (!seller && !(biz.budgetAud > 0)) errs.budgetAud = 'Enter your total budget in A$.';
+    if (!seller && (!biz.orderBy || !biz.deliverBy)) errs.deliverBy = 'Enter both dates.';
+    else if (!seller && biz.deliverBy < biz.orderBy) errs.deliverBy = 'Delivery can\'t be before the order date.';
     setErrors(errs);
     if (Object.keys(errs).length) return;
     setBusy(true);
     try {
-      await signUp({ ...form, role, site: toSite(form.company, PLACES[form.place]) });
-      navigate(role === 'seller' ? '/my-listings' : '/marketplace', { replace: true });
+      if (!(await isEmailAvailable(form.email))) throw new Error('An account with this email already exists. Log in instead.');
+      const site = toSite(form.company.trim(), PLACES[form.place]);
+      const abn = form.abn.replace(/\s/g, '');
+      const website = biz.website.trim() ? (/^https?:\/\//.test(biz.website.trim()) ? biz.website.trim() : `https://${biz.website.trim()}`) : null;
+      // Save the business first (producers or manufacturers table), then create the login.
+      const listing: NewListing = {
+        kind: seller ? 'supply' : 'demand', company: form.company.trim(), abn, website,
+        suburb: site.suburb, state: site.state, lat: site.lat, lng: site.lng,
+        material: biz.material, grade: biz.grade, form: biz.detail.trim(), tonnes: biz.tonnes, frequency: 'Monthly',
+        priceAud: seller ? biz.priceAud : Math.round((biz.budgetAud / biz.tonnes) * 100) / 100,
+        virginPriceAud: null, purity: null, certifications: seller ? biz.certifications : [],
+        ...(seller ? {} : { budgetAud: biz.budgetAud, orderBy: biz.orderBy, deliverBy: biz.deliverBy }),
+      };
+      try {
+        await api.createListing(listing);
+      } catch (err) {
+        throw new Error(`Couldn't save your business: ${(err as Error).message}`);
+      }
+      await signUp({ ...form, abn, role, site });
+      navigate(seller ? '/my-listings' : '/marketplace', { replace: true });
     } catch (err) {
       setErrors({ form: (err as Error).message });
       setBusy(false);
     }
   }
+
+  const num = (v: number) => (v ? String(v) : '');
 
   return (
     <AuthLayout>
@@ -161,6 +224,63 @@ export function Signup() {
             </select>
           </label>
         </div>
+        <fieldset className="auth-section">
+          <legend>{seller ? 'What you sell' : 'What you need'}</legend>
+          <div className="form-row">
+            <label className="field">{seller ? 'Output material' : 'Required material'}
+              <select id="su-material" value={biz.material} onChange={e => updateBiz({ material: e.target.value as MaterialKey })}>
+                {SIGNUP_MATERIALS.map(k => <option key={k} value={k}>{MATERIALS[k].label}</option>)}
+              </select>
+            </label>
+            <label className="field">{seller ? 'Output grade' : 'Grade required'}
+              <select id="su-grade" value={biz.grade} onChange={e => updateBiz({ grade: e.target.value })}>
+                {Object.values(GRADES).map(g => <option key={g}>{g}</option>)}
+              </select>
+            </label>
+          </div>
+          <label className="field">{seller ? 'Input materials you process' : 'What you make with it (optional)'}
+            <input id="su-detail" value={biz.detail} placeholder={seller ? 'Steel offcuts, swarf and plate' : 'Structural sections, window frames…'}
+              onChange={e => updateBiz({ detail: e.target.value })} aria-invalid={!!errors.detail} />
+            {errors.detail && <span className="err">{errors.detail}</span>}
+          </label>
+          <div className="form-row">
+            <label className="field">{seller ? 'Output (tonnes / month)' : 'Required (tonnes / month)'}
+              <input id="su-tonnes" type="number" min={0} value={num(biz.tonnes)} onChange={e => updateBiz({ tonnes: Number(e.target.value) })} aria-invalid={!!errors.tonnes} />
+              {errors.tonnes && <span className="err">{errors.tonnes}</span>}
+            </label>
+            {seller ? (
+              <label className="field">Price (A$ / tonne)
+                <input id="su-price" type="number" min={0} value={num(biz.priceAud)} onChange={e => updateBiz({ priceAud: Number(e.target.value) })} aria-invalid={!!errors.priceAud} />
+                {errors.priceAud && <span className="err">{errors.priceAud}</span>}
+              </label>
+            ) : (
+              <label className="field">Total budget (A$, excl. freight)
+                <input id="su-budget" type="number" min={0} step={1000} value={num(biz.budgetAud)} onChange={e => updateBiz({ budgetAud: Number(e.target.value) })} aria-invalid={!!errors.budgetAud} />
+                {errors.budgetAud && <span className="err">{errors.budgetAud}</span>}
+              </label>
+            )}
+          </div>
+          {seller ? (
+            <div className="field">Compliance
+              <div className="chips">
+                {CERTS.map(c => <button type="button" key={c} className="chip" aria-pressed={biz.certifications.includes(c)} onClick={() => toggleCert(c)}>{c}</button>)}
+              </div>
+            </div>
+          ) : (
+            <div className="form-row">
+              <label className="field">Order by
+                <input id="su-order-by" type="date" value={biz.orderBy} onChange={e => updateBiz({ orderBy: e.target.value })} />
+              </label>
+              <label className="field">Deliver by
+                <input id="su-deliver-by" type="date" value={biz.deliverBy} onChange={e => updateBiz({ deliverBy: e.target.value })} aria-invalid={!!errors.deliverBy} />
+                {errors.deliverBy && <span className="err">{errors.deliverBy}</span>}
+              </label>
+            </div>
+          )}
+          <label className="field">Website (optional)
+            <input id="su-website" type="url" placeholder="www.yourcompany.com.au" value={biz.website} onChange={e => updateBiz({ website: e.target.value })} />
+          </label>
+        </fieldset>
         <label className="field">Work email
           <input id="su-email" type="email" autoComplete="email" value={form.email} onChange={e => update({ email: e.target.value })} aria-invalid={!!errors.email} />
           {errors.email && <span className="err">{errors.email}</span>}

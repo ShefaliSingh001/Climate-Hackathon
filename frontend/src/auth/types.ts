@@ -31,5 +31,7 @@ export interface AuthClient {
   signIn(email: string, password: string): Promise<Account>;
   signInDemo(role: Role): Promise<Account>;
   signUp(input: SignUpInput): Promise<Account>;
+  /** Checked before sign-up writes the business to the database, so a taken email leaves nothing behind. */
+  isEmailAvailable(email: string): Promise<boolean>;
   signOut(): Promise<void>;
 }

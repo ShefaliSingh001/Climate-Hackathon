@@ -11,6 +11,7 @@ interface AuthState {
   signIn: (email: string, password: string) => Promise<Account>;
   signInDemo: (role: Role) => Promise<Account>;
   signUp: (input: SignUpInput) => Promise<Account>;
+  isEmailAvailable: (email: string) => Promise<boolean>;
   signOut: () => Promise<void>;
 }
 
@@ -31,6 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signIn: async (e, p) => { const a = await client.signIn(e, p); setAccount(a); return a; },
     signInDemo: async r => { const a = await client.signInDemo(r); setAccount(a); return a; },
     signUp: async i => { const a = await client.signUp(i); setAccount(a); return a; },
+    isEmailAvailable: e => client.isEmailAvailable(e),
     signOut: async () => { await client.signOut(); setAccount(null); },
   };
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
