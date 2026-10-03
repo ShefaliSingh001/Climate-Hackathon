@@ -1,4 +1,4 @@
-import type { MaterialKey } from '../api/types';
+import type { GradeKey, MaterialKey } from '../api/types';
 
 export interface MaterialInfo {
   label: string;
@@ -18,6 +18,10 @@ export const MATERIALS: Record<MaterialKey, MaterialInfo> = {
   plastics:  { label: 'Plastics',     code: 'Pl', color: '#2A9D8F', co2PerTonne: 1.5 },
   ewaste:    { label: 'E-scrap',      code: 'Ew', color: '#C2507A', co2PerTonne: 2.0 },
   glass:     { label: 'Glass',        code: 'Gl', color: '#6B8E23', co2PerTonne: 0.3 },
+  brass:     { label: 'Brass',        code: 'Br', color: '#9A7B12', co2PerTonne: 2.5 },
+  alloys:    { label: 'Stainless & alloys', code: 'Ss', color: '#5E6B78', co2PerTonne: 2.0 },
 };
+
+export const GRADES: Record<GradeKey, string> = { high: 'High quality', medium: 'Medium quality', short_use: 'Short use' };
 
 export const MATERIAL_KEYS = Object.keys(MATERIALS) as MaterialKey[];

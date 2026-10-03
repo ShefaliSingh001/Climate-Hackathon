@@ -18,3 +18,8 @@ venv/
 .DS_Store
 .vscode/
 .idea/
+
+# SQLite temp files (the .db itself is committed)
+*.db-journal
+*.db-wal
+*.db-shm

@@ -39,12 +39,17 @@ If the backend needs a different shape, change `types.ts` + this file in the sam
 | --- | --- |
 | `kind` | `"supply"` (seller offering) or `"demand"` (buyer request) |
 | `state` | `NSW` `VIC` `QLD` `SA` `WA` `TAS` `ACT` `NT` |
-| `material` | `copper` `aluminium` `steel` `plastics` `paper` `glass` `ewaste` |
+| `material` | `copper` `aluminium` `steel` `brass` `alloys` `plastics` `paper` `glass` `ewaste` |
 | `tonnes` + `frequency` | tonnes per `Weekly` / `Fortnightly` / `Monthly` period |
 | `priceAud` | asking price (supply) or the most the buyer pays (demand) |
 | `virginPriceAud` | indicative price of the virgin equivalent; `null` if not comparable |
 | `purity` | percent; `null` = assay on request |
 | `matchScore` | optional 0–100 fit for the requesting site; the card hides the badge when absent |
+| `gradeKey` | optional, backend only: `high` `medium` `short_use` (the `grade` field carries the label) |
+| `abn`, `website` | optional, backend only |
+| `locationApprox` | optional, backend only: `true` when `lat`/`lng` is the suburb centre, not the yard |
+
+The backend ids are `p<n>` for producers (supply) and `m<n>` for manufacturers (demand).
 
 ## Endpoints
 
@@ -52,9 +57,10 @@ If the backend needs a different shape, change `types.ts` + this file in the sam
 | --- | --- | --- |
 | `GET /listings?kind=supply&lat=-33.847&lng=150.9` | `lat`/`lng` = requesting site, used for `matchScore` | `Listing[]` |
 | `GET /listings/{id}` | | `Listing` |
-| `POST /listings` | `Listing` without `id`, `verified`, `monthsOnPlatform`, `matchScore` | created `Listing` |
+| `POST /listings` | `Listing` without `id`, `verified`, `monthsOnPlatform`, `matchScore`, plus `abn` (11 digits). Backend `grade` must be `High quality`, `Medium quality` or `Short use` | created `Listing` |
 | `POST /listings/{id}/enquiries` | `{ "tonnesPerMonth": 30, "firstDelivery": "November 2026", "message": "..." }` | `{ "id": "...", "status": "sent" }` |
 | `POST /matches` | `MatchRequest` (below) | `MatchResult[]`, best first |
+| `POST /orders/plan` | `OrderPlanRequest` (below) | `OrderPlanResult` (below) |
 | `GET /impact` | | `ImpactStats` (below) |
 
 The UI currently filters by state, material, distance and search text **on the client**, so `GET /listings` can return every listing of that kind. Server-side filtering can be added later without breaking the UI.
@@ -85,6 +91,42 @@ The UI currently filters by state, material, distance and search text **on the c
 
 All breakdown values are 0–100. The UI shows `material`, `distance`, `price` and `reliability` as bars, and `reasons` as one line of text.
 
+`grade` (`high` | `medium` | `short_use`, optional = any grade) and `certifications` (string array, optional) are also accepted. The backend ignores `minPurity` because the dataset grades material instead of assaying it.
+
+`MatchResult` from the backend also carries `eligible` (false when the matching model rules the supplier out; `reasons` says why and `score` is 0) and `inBestPlan` (part of the model's cheapest combined order).
+
+### OrderPlanRequest / OrderPlanResult
+
+Splits one monthly demand across several suppliers. The backend uses the tender matching model in `API/scrap_model_api.py`.
+
+```json
+{
+  "material": "steel", "grade": "high", "minPurity": 0,
+  "tonnesPerMonth": 300, "budgetAud": 95000,
+  "site": { "name": "Westlink Cable Co.", "suburb": "Wetherill Park", "state": "NSW", "lat": -33.847, "lng": 150.9 },
+  "maxPartners": 4, "verifiedOnly": true, "strategy": "cost"
+}
+```
+
+`budgetAud` is A$ per month for the **material only**; the UI adds its freight estimate on top. `strategy` is `cost` | `fewest` | `emissions` (the model has no emissions objective yet, so the backend plans `emissions` as lowest cost and says so in `notice`).
+
+```json
+{
+  "status": "feasible",
+  "reason": null,
+  "shortfallTonnes": null,
+  "plans": [
+    { "rank": 1, "supplierCount": 4, "totalCostAud": 87900, "budgetRemainingAud": 7100,
+      "lines": [{ "listingId": "p10", "tonnes": 80, "priceAud": 280, "costAud": 22400, "proposedDelivery": "2026-11-01" }] }
+  ],
+  "eligibleCount": 18,
+  "excluded": [{ "listingId": "p2", "reasons": ["Grade mismatch."] }],
+  "notice": "Feasibility uses supplied values, not predicted prices. ..."
+}
+```
+
+`plans` holds up to 3 alternatives, best first, each with a different set of suppliers. Every plan delivers exactly `tonnesPerMonth` within `budgetAud`. With no plan, `status` is `infeasible` and `reason` (plus `shortfallTonnes` when there isn't enough compatible stock) says why. The UI only needs `listingId` and `tonnes` from each line.
+
 ### ImpactStats
 
 ```json
@@ -105,4 +147,4 @@ Set `isSample: false` once the numbers come from real trades; the UI then drops 
 These run on top of the endpoints above, so the backend does not need to provide them. If it wants to take them over later, these are the shapes:
 
 - **Freight estimate** (`src/lib/logistics.ts`): from tonnes per month, road km, truck type and whether the truck returns empty, it produces trips, A$ per month, A$ per tonne and t CO2e. Rates are indicative.
-- **Combined order** (`src/lib/sourcing.ts`): from material, min purity, tonnes per month, budget (A$ per month including freight), site, max partners, verified-only and strategy (`cost` | `fewest` | `emissions`), it produces lines of `{ listing, tonnes, freight, materialCost, total, landedPerTonne }` plus totals, shortfall and budget left. A future `POST /orders/plan` could return the same.
+- **Combined order totals** (`src/lib/sourcing.ts`): the split itself now comes from `POST /orders/plan` (the mock uses a greedy stand-in). The browser adds freight per line and the totals, shortfall and budget left.

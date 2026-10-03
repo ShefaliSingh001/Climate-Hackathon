@@ -1,7 +1,8 @@
-import type { Enquiry, ImpactStats, Listing, ListingKind, MatchRequest, MatchResult, NewListing, Site } from '../types';
+import type { Enquiry, ImpactStats, Listing, ListingKind, MatchRequest, MatchResult, NewListing, OrderPlanRequest, OrderPlanResult, Site } from '../types';
 import type { Api } from '../client';
 import seed from './listings.json';
 import { baselineScore, scoreListing } from './scoring';
+import { planOrder } from '../../lib/sourcing';
 
 const listings: Listing[] = (seed as Listing[]).map(l => ({ ...l }));
 const wait = <T,>(value: T, ms = 150) => new Promise<T>(res => setTimeout(() => res(value), ms));
@@ -29,6 +30,17 @@ export const mockApi: Api = {
       .map(l => scoreListing(l, req))
       .sort((a, b) => b.score - a.score);
     return wait(results, 350);
+  },
+
+  async planOrder(req: OrderPlanRequest): Promise<OrderPlanResult> {
+    // Greedy stand-in for the backend matching model; it may return a partial plan.
+    const plan = planOrder(listings, req);
+    const lines = plan.lines.filter(l => l.tonnes > 0).map(l => ({ listingId: l.listing.id, tonnes: l.tonnes }));
+    return wait({
+      status: plan.shortfallT < 0.5 && plan.budgetLeft >= 0 ? 'feasible' : 'infeasible',
+      plans: lines.length ? [{ rank: 1, lines, supplierCount: lines.length, totalCostAud: plan.materialTotal, budgetRemainingAud: plan.budgetLeft }] : [],
+      reason: lines.length ? null : 'No supply listed for this material and grade.',
+    }, 250);
   },
 
   async sendEnquiry(listingId: string, _enquiry: Enquiry) {
