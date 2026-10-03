@@ -9,6 +9,7 @@ import { MyListings } from './pages/MyListings';
 import { SellNew } from './pages/SellNew';
 import { Impact } from './pages/Impact';
 import { ListingDetail } from './pages/ListingDetail';
+import { Settings } from './pages/Settings';
 
 /** Signed-in shell: top bar plus the current page. */
 function AppShell() {
@@ -40,6 +41,7 @@ export function App() {
             <Route path="/marketplace" element={<Marketplace />} />
             <Route path="/listing/:id" element={<ListingDetail />} />
             <Route path="/impact" element={<Impact />} />
+            <Route path="/settings" element={<Settings />} />
             <Route path="/sourcing" element={<RequireAuth role="buyer"><Matches /></RequireAuth>} />
             <Route path="/matches" element={<MatchesRedirect />} />
             <Route path="/my-listings" element={<RequireAuth role="seller"><MyListings /></RequireAuth>} />

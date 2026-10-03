@@ -31,6 +31,7 @@ Other scripts: `npm run typecheck`, `npm run build`, `npm run preview`.
 | `/my-listings` (sellers) | The seller's own listings (matched on ABN) |
 | `/sell/new` (sellers) | List recovered material, prefilled from the account, yard location on a map |
 | `/impact` | KPIs and the global circularity rate against the COP31 15% goal |
+| `/settings` | Theme (system, light, dark), reduce animations, map defaults, notification switches, account details. Opened from the account menu |
 
 ## Demo accounts
 

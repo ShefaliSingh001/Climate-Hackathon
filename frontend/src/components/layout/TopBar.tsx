@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { ChevronDown, LogOut, MapPin, Search } from 'lucide-react';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { ChevronDown, LogOut, MapPin, Moon, Search, Settings as SettingsIcon, Sun } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
 import { useMarket } from '../../state/store';
+import { useSettings } from '../../state/settings';
 import { Logo } from '../brand/Logo';
 
 export { APP_NAME } from '../brand/Logo';
@@ -26,6 +27,8 @@ export function TopBar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [menu, setMenu] = useState(false);
+  const { theme, update } = useSettings();
+  const dark = theme === 'dark' || (theme === 'system' && typeof matchMedia === 'function' && matchMedia('(prefers-color-scheme: dark)').matches);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -76,6 +79,12 @@ export function TopBar() {
               <span className={`role-badge ${account.role}`}>{isBuyer ? 'Buyer account' : 'Seller account'}{account.demo ? ' · demo' : ''}</span>
             </div>
             <div className="account-row"><MapPin size={14} />{account.site.suburb}, {account.site.state}</div>
+            <Link role="menuitem" to="/settings" className="account-row action" onClick={() => setMenu(false)}>
+              <SettingsIcon size={14} />Settings
+            </Link>
+            <button role="menuitem" className="account-row action plain" onClick={() => update({ theme: dark ? 'light' : 'dark' })}>
+              {dark ? <Sun size={14} /> : <Moon size={14} />}{dark ? 'Light mode' : 'Dark mode'}
+            </button>
             <button role="menuitem" className="account-row action" onClick={async () => { await signOut(); navigate('/'); }}>
               <LogOut size={14} />Sign out
             </button>

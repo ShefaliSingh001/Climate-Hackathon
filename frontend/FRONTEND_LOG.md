@@ -5,6 +5,49 @@ Anyone (or any Claude session) picking up the frontend should read this before s
 
 ---
 
+## 2026-10-03: Materials dropdown, Settings page, animated routes, homepage scroll motion
+
+**What**
+- **Map filters:** State and a new Materials **multi-select dropdown** sit side by side, replacing the chip cloud. The dropdown has checkboxes, colour dots and counts; an empty selection means "All materials". Sort and Distance sit below, "Verified only" is a switch, and "Clear filters" appears when anything differs from your defaults. The ranking note is a collapsed "How ranking works".
+- **Settings** (`/settings`, account menu → Settings):
+  - Theme: System, Light or Dark, with previews.
+  - Reduce animations.
+  - Default map style, state and search distance.
+  - Email notification switches (demo only).
+  - Account details, sign out, and "Reset demo data".
+  - The account menu also has a quick Light/Dark toggle.
+  - Saved in localStorage under `resourcex.settings`. `index.html` applies the theme before first paint, so there is no flash.
+- **Routes:** the road route draws itself in. It has a soft halo, a casing, a stronger line and a small glowing pulse that travels from the supplier to your site.
+  - "Your site" has a ripple; the supplier pin has a white ring.
+  - A chip on the map shows "183 km · about 2 h 15 min by road", "Finding the road route…" or "Road route unavailable".
+  - Route maps use your default map style.
+  - Paths use `pathLength=1000`, so the animation looks the same at every zoom.
+- **Homepage motion** (`components/home/motion.tsx`):
+  - staggered hero entrance;
+  - fade-and-slide reveals (up, left or right, with stagger for lists and impact numbers);
+  - photos settle from a slight zoom, with a light parallax on the problem photo;
+  - numbers count up once;
+  - the product map's routes draw in, then pulse, and the order card slides up and its bar fills;
+  - the nav is fixed and turns solid on scroll, with a lime reading-progress bar and the current section highlighted.
+
+**Why**
+- Team feedback: the filter area was cluttered, there was no way to switch to dark mode, the route looked primitive, and the landing page felt static.
+
+**Files**
+- New: `components/ui/MultiSelect.tsx`, `components/ui/Switch.tsx`, `state/settings.ts`, `pages/Settings.tsx`, `components/home/motion.tsx`.
+- Changed: `FilterBar`, `state/store.ts` (`setMaterials`, `resetFilters`, `filterDefaults` from settings), `TopBar`, `App.tsx`, `main.tsx`, `index.html`, `RouteMap`, `Marketplace`, `pages/Home.tsx`, `styles/app.css`, `styles/home.css`.
+
+**Rules**
+- All motion stops under the device's reduced-motion setting and under Settings → Reduce animations (`:root[data-motion="reduced"]`). In JS, check `prefersReducedMotion()`.
+- Reveals only hide content that starts below the fold, and there is a 4 s fallback, so nothing stays hidden.
+
+**Open items**
+- Settings are per browser. Move them to the account once the backend has auth (`AUTH.md`).
+- Notification switches don't send anything yet.
+- The animated route was checked with a stubbed routing response (the sandbox blocks OSRM). Check it against the real service in a local browser.
+
+---
+
 ## 2026-10-03: Road routes, plain-language units, rankings instead of scores, new inputs
 
 **What**

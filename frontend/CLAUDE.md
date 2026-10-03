@@ -37,16 +37,18 @@ src/
   auth/         types.ts (Role, Account, AuthClient), mockAuth.ts (demo accounts, browser storage), AuthProvider.tsx (useAuth, useSite, RequireAuth)
   components/
     brand/      Logo (mark + live wordmark), DotField (animated dot-wave canvas)
-    home/       nswMap.ts (pre-projected NSW outline + sample pins for the homepage)
-    layout/     TopBar (role-based nav, search, account menu)
+    home/       nswMap.ts (pre-projected NSW outline + sample pins for the homepage),
+                motion.tsx (Reveal, CountUp, useScrollFx: homepage scroll effects)
+    layout/     TopBar (role-based nav, search, account menu with Settings and a theme toggle)
     listings/   FilterBar (state, materials, sort, distance), ListingCard (rail card: position + RankBars),
                 RankBars (Material / Distance / Price / Reliability bars labelled with positions),
                 LogisticsEstimate (freight + landed cost), EnquiryForm
     map/        MarketMap (pins, state outline, radius, controls), LayerSwitcher, layers.ts (tile sources),
-                RouteMap (your site + partners, road routes via lib/routing.ts, dashed line fallback)
+                RouteMap (your site + partners, animated road routes via lib/routing.ts, dashed line fallback)
     sourcing/   CombinePlanner (split one demand across several suppliers, editable)
     ui/         CircularityChart, Select (custom accessible dropdown; use it, never a native <select>),
-                NumberField (text-based number input that can be cleared; use it, never type="number")
+                NumberField (text-based number input that can be cleared; use it, never type="number"),
+                MultiSelect (checkbox dropdown, empty = all), Switch (on/off with label)
   data/         au-states.json (state boundaries, Natural Earth via datamaps, simplified)
   hooks/        useAsync (fetch state), useListings (load + filter + rank + sort for the marketplace), useRoute
   lib/          materials.ts (labels, colours, CO2 factors), regions.ts (states, bounds, HOME_SITE),
@@ -54,8 +56,9 @@ src/
                 ranking.ts (positions per factor, no scores), routing.ts (OSRM road routes),
                 sourcing.ts (multi-supplier order planner)
   pages/        Home (/), Auth (Login, Signup), Marketplace (/marketplace), ListingDetail (/listing/:id),
-                Matches (/sourcing, ranked + combine), MyListings, SellNew, Impact
-  state/        store.ts (zustand: mode, region, filters, hovered pin, map layer)
+                Matches (/sourcing, ranked + combine), MyListings, SellNew, Impact, Settings (/settings)
+  state/        store.ts (zustand: mode, region, filters, hovered pin, map layer; defaults come from settings),
+                settings.ts (useSettings: theme, motion, map defaults, notifications; saved in localStorage)
   styles/       tokens.css (all colours, light + dark), app.css (app component styles, sectioned), home.css (homepage)
 ```
 
@@ -67,6 +70,8 @@ src/
 - Plain language for non-technical users: no unit abbreviations in the UI. Write "25 tonnes per fortnight", "$13,050 per tonne" with the helpers in `lib/format.ts` (never "t", "t/fn", "A$/t", "mo"). Show `PRICE_NOTE` (AUD, excluding GST) once per page instead of "A$". "km" is fine. Wrap CO₂e in `<abbr title="carbon dioxide equivalent">` where space allows. Australian spelling.
 - Say "newly sourced" materials, never "virgin", in UI copy (API field names like `virginPriceAud` stay).
 - No match scores in the UI. Show positions ("#2 of 18", "1st nearest") from `lib/ranking.ts`; scores only decide the order.
+- Theme: `data-theme` on `<html>` (light/dark, absent = follow the device), set by `state/settings.ts` and by the inline script in `index.html` before first paint. Only use tokens so both themes work.
+- Motion: keep it subtle (transform/opacity, 0.5–0.9 s, one easing). Every animation must stop under `prefers-reduced-motion` **and** `:root[data-motion="reduced"]` (Settings → Reduce animations); in JS check `prefersReducedMotion()` from `state/settings.ts`.
 - Anything not real data is labelled: "Sample" badges on the impact page, "Demo mode" notes when the mock API is active.
 
 ## Known gaps / ideas
