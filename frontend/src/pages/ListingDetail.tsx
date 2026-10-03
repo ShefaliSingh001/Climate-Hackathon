@@ -1,12 +1,14 @@
 import type { CSSProperties } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, BadgeCheck, Layers3, Leaf, MapPin } from 'lucide-react';
+import { Link, useLocation, useParams } from 'react-router-dom';
+import { ArrowLeft, BadgeCheck, Clock, Layers3, Leaf, MapPin, Trophy } from 'lucide-react';
+import type { Listing, Site } from '../api/types';
+import { useRoute } from '../hooks/useRoute';
 import { api } from '../api/client';
 import { useAsync } from '../hooks/useAsync';
 import { MATERIALS } from '../lib/materials';
 import { useAuth, useSite } from '../auth/AuthProvider';
 import { roadKm } from '../lib/geo';
-import { aud, belowVirgin, fmtInt, monthlyTonnes, per } from '../lib/format';
+import { PRICE_NOTE, aud, belowNew, driveTime, fmtInt, monthlyTonnes, tonnes, volume } from '../lib/format';
 import { RouteMap } from '../components/map/RouteMap';
 import { LogisticsEstimate } from '../components/listings/LogisticsEstimate';
 import { EnquiryForm } from '../components/listings/EnquiryForm';
@@ -41,11 +43,21 @@ export function ListingDetail() {
     );
   }
 
+  return <ListingBody l={l} own={own} site={HOME_SITE} />;
+}
+
+/** Position passed from the map list, e.g. { position: 3, of: 22 }. */
+interface RankState { rank?: { position: number; of: number } }
+
+function ListingBody({ l, own, site: HOME_SITE }: { l: Listing; own: boolean; site: Site }) {
+  const rank = (useLocation().state as RankState | null)?.rank;
+  const { route } = useRoute(HOME_SITE, l);
   const m = MATERIALS[l.material];
   const isSupply = l.kind === 'supply';
-  const distanceKm = roadKm(HOME_SITE, l);
+  // Real road distance when the routing service answers; otherwise straight line × 1.25.
+  const distanceKm = route?.distanceKm ?? roadKm(HOME_SITE, l);
   const monthly = monthlyTonnes(l.tonnes, l.frequency);
-  const pct = belowVirgin(l.priceAud, l.virginPriceAud);
+  const pct = belowNew(l.priceAud, l.virginPriceAud);
   const max = Math.max(l.priceAud, l.virginPriceAud ?? 0);
 
   return (
@@ -58,7 +70,9 @@ export function ListingDetail() {
           <div className="detail-title">
             <p className="eyebrow">{isSupply ? 'Supply listing' : 'Buyer request'} · {m.label}</p>
             <h1>{l.company}{l.verified && <span className="verified" title="Verified site and licences"><BadgeCheck size={20} /></span>}</h1>
-            <p className="detail-sub"><MapPin size={14} />{l.suburb}, {l.state} · {fmtInt(distanceKm)} km by road from {HOME_SITE.suburb}</p>
+            <p className="detail-sub"><MapPin size={14} />{l.suburb}, {l.state} · {fmtInt(distanceKm)} km by road from {HOME_SITE.suburb}
+              {route && <><Clock size={14} style={{ marginLeft: 6 }} />{driveTime(route.durationMin)} drive</>}</p>
+            {rank && <p className="detail-rank"><Trophy size={14} />Ranked #{rank.position} of {rank.of} {isSupply ? 'suppliers' : 'buyer requests'} on your map</p>}
           </div>
           <div className="detail-actions">
             {own ? <span className="tag good">Your listing</span> : <a className="btn btn-primary" href="#enquiry">{isSupply ? 'Request a quote' : 'Make an offer'}</a>}
@@ -69,10 +83,10 @@ export function ListingDetail() {
         </header>
 
         <dl className="kpis">
-          <div className="kpi"><dt>{isSupply ? 'Available' : 'Wants'}</dt><dd>{fmtInt(l.tonnes)} t/{per(l.frequency)}<small>≈ {fmtInt(monthly)} t per month</small></dd></div>
-          <div className="kpi"><dt>{isSupply ? 'Price' : 'Pays up to'}</dt><dd>{aud(l.priceAud)}/t<small>{pct != null ? `${pct}% below virgin` : 'No virgin benchmark'}</small></dd></div>
-          <div className="kpi"><dt>{isSupply ? 'Purity' : 'Min. purity'}</dt><dd>{l.purity != null ? `${l.purity}%` : 'On request'}<small>{l.grade}</small></dd></div>
-          <div className="kpi"><dt>CO₂e avoided</dt><dd>{fmtInt(monthly * m.co2PerTonne)} t<small>per month at full volume</small></dd></div>
+          <div className="kpi"><dt>{isSupply ? 'Available' : 'Wants'}</dt><dd>{tonnes(l.tonnes)}<small>per {l.frequency === 'Weekly' ? 'week' : l.frequency === 'Fortnightly' ? 'fortnight' : 'month'} · about {tonnes(monthly)} a month</small></dd></div>
+          <div className="kpi"><dt>{isSupply ? 'Price' : 'Pays up to'}</dt><dd>{aud(l.priceAud)}<small>per tonne · {pct != null ? (pct >= 0 ? `${pct}% cheaper than newly sourced` : `${-pct}% dearer than newly sourced`) : 'no newly sourced benchmark'}</small></dd></div>
+          <div className="kpi"><dt>{isSupply ? 'Purity' : 'Minimum purity'}</dt><dd>{l.purity != null ? `${l.purity}%` : 'On request'}<small>{l.grade}</small></dd></div>
+          <div className="kpi"><dt>Emissions avoided</dt><dd>{tonnes(monthly * m.co2PerTonne)}<small>of <abbr title="carbon dioxide equivalent">CO₂e</abbr> per month at full volume</small></dd></div>
         </dl>
 
         <div className="detail-grid">
@@ -86,15 +100,15 @@ export function ListingDetail() {
                   <tr><th>Material</th><td>{m.label}</td></tr>
                   <tr><th>Grade</th><td>{l.grade}</td></tr>
                   <tr><th>Form</th><td>{l.form}</td></tr>
-                  <tr><th>{isSupply ? 'Purity' : 'Min. purity'}</th><td className="num">{l.purity != null ? `${l.purity}%` : 'Assay on request'}</td></tr>
-                  <tr><th>Volume</th><td className="num">{fmtInt(l.tonnes)} t per {l.frequency === 'Weekly' ? 'week' : l.frequency === 'Fortnightly' ? 'fortnight' : 'month'}</td></tr>
+                  <tr><th>{isSupply ? 'Purity' : 'Minimum purity'}</th><td className="num">{l.purity != null ? `${l.purity}%` : 'Assay on request'}</td></tr>
+                  <tr><th>Volume</th><td>{volume(l.tonnes, l.frequency)}</td></tr>
                   <tr><th>Frequency</th><td>{l.frequency}</td></tr>
                 </tbody>
               </table>
             </section>
 
             <section className="panel">
-              <h2>Price against virgin material</h2>
+              <h2>Price per tonne against newly sourced materials</h2>
               <div className="pricebar">
                 <div className="pb-row">
                   <span>{isSupply ? 'This listing' : 'Offer'}</span>
@@ -103,20 +117,20 @@ export function ListingDetail() {
                 </div>
                 {l.virginPriceAud != null && (
                   <div className="pb-row">
-                    <span>Virgin equiv.</span>
+                    <span>Newly sourced</span>
                     <div className="track"><div className="fill" style={{ width: '100%', background: 'var(--ink-3)' }} /></div>
                     <span className="num">{aud(l.virginPriceAud)}</span>
                   </div>
                 )}
               </div>
-              <p className="hint" style={{ marginTop: 8 }}>Virgin benchmark is an indicative Australian delivered price. Prices exclude GST.</p>
+              <p className="hint" style={{ marginTop: 8 }}>"Newly sourced" is the indicative Australian delivered price of the same material made from new raw resources. {PRICE_NOTE}</p>
             </section>
 
             <section className="panel">
               <h2 className="with-icon"><Leaf size={16} />Estimated impact at full volume</h2>
               <div className="impact-pair">
-                <div><b className="num">{fmtInt(monthly)} t</b><span>kept in use per month</span></div>
-                <div><b className="num">{fmtInt(monthly * m.co2PerTonne)} t</b><span>CO₂e avoided per month (factor {m.co2PerTonne} t/t)</span></div>
+                <div><b className="num">{tonnes(monthly)}</b><span>of material kept in use per month</span></div>
+                <div><b className="num">{tonnes(monthly * m.co2PerTonne)}</b><span>of <abbr title="carbon dioxide equivalent">CO₂e</abbr> (carbon emissions) avoided per month, at {m.co2PerTonne} tonnes per tonne of material</span></div>
               </div>
             </section>
           </div>

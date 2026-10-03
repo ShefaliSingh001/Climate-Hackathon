@@ -4,7 +4,9 @@ import { BadgeCheck, CheckCircle2, Plus, X } from 'lucide-react';
 import { api, isMock } from '../../api/client';
 import type { Listing, OrderPlanResult } from '../../api/types';
 import { MATERIALS } from '../../lib/materials';
-import { aud, co2e, fmtInt } from '../../lib/format';
+import { aud, co2e, fmtInt, tonnes } from '../../lib/format';
+import { NumberField } from '../ui/NumberField';
+import { Select } from '../ui/Select';
 import { TRUCKS } from '../../lib/logistics';
 import { allocate, spareCandidates, summarise, STRATEGIES, type Allocation, type OrderRequest, type Strategy } from '../../lib/sourcing';
 import { RouteMap } from '../map/RouteMap';
@@ -76,16 +78,10 @@ export function CombinePlanner({ supply, request }: Props) {
     <div className="stack">
       <section className="panel">
         <div className="filter-row">
-          <label className="field inline">Optimise for
-            <select id="c-strategy" value={strategy} onChange={e => setStrategy(e.target.value as Strategy)}>
-              {(Object.keys(STRATEGIES) as Strategy[]).map(k => <option key={k} value={k}>{STRATEGIES[k]}</option>)}
-            </select>
-          </label>
-          <label className="field inline">Up to
-            <select id="c-partners" value={maxPartners} onChange={e => setMaxPartners(Number(e.target.value))}>
-              {[2, 3, 4, 5, 6, 8].map(n => <option key={n} value={n}>{n} partners</option>)}
-            </select>
-          </label>
+          <Select<Strategy> id="c-strategy" size="sm" prefix="Optimise for" aria-label="Optimise for" value={strategy} onChange={setStrategy}
+            options={(Object.keys(STRATEGIES) as Strategy[]).map(k => ({ value: k, label: STRATEGIES[k] }))} />
+          <Select<number> id="c-partners" size="sm" prefix="Up to" aria-label="Maximum partners" value={maxPartners} onChange={setMaxPartners}
+            options={[2, 3, 4, 5, 6, 8].map(n => ({ value: n, label: `${n} partners` }))} />
           <label className="toggle"><input id="c-verified" type="checkbox" checked={verifiedOnly} onChange={e => setVerifiedOnly(e.target.checked)} /> Verified only</label>
         </div>
       </section>
@@ -108,27 +104,27 @@ export function CombinePlanner({ supply, request }: Props) {
 
       <section className={`panel plan-summary ${met && inBudget ? 'ok' : 'warn'}`} aria-busy={planning}>
         <div className="plan-status">
-          {!lines.length && result?.reason && <><b>No combination found.</b> {result.reason}{result.shortfallTonnes ? ` Short by ${fmtInt(result.shortfallTonnes)} t of compatible stock.` : ''}</>}
+          {!lines.length && result?.reason && <><b>No combination found.</b> {result.reason}{result.shortfallTonnes ? ` Short by ${tonnes(result.shortfallTonnes)} of compatible stock.` : ''}</>}
           {met && inBudget && <><CheckCircle2 size={18} /><b>Demand met within budget</b> using {lines.filter(l => l.tonnes > 0).length} partners</>}
-          {lines.length > 0 && !met && <><b>Short by {fmtInt(plan.shortfallT)} t/month.</b> Add a partner, allow more partners or untick “Verified only”.</>}
-          {met && !inBudget && <><b>Over budget by {aud(-plan.budgetLeft)}/month.</b> Try “Lowest cost” or raise the budget.</>}
+          {lines.length > 0 && !met && <><b>Short by {tonnes(plan.shortfallT)} a month.</b> Add a partner, allow more partners or untick “Verified only”.</>}
+          {met && !inBudget && <><b>Over budget by {aud(-plan.budgetLeft)} a month.</b> Try “Lowest cost” or raise the budget.</>}
           {!lines.length && !result?.reason && !failed && <>Planning…</>}
         </div>
         <div className="meters">
           <div className="meter">
-            <div className="meter-head"><span>Volume</span><span className="num">{fmtInt(plan.tonnes)} / {fmtInt(req.tonnesPerMonth)} t</span></div>
+            <div className="meter-head"><span>Volume each month</span><span className="num">{fmtInt(plan.tonnes)} of {tonnes(req.tonnesPerMonth)}</span></div>
             <div className="track"><div className="fill" style={{ width: `${coverage}%`, background: met ? 'var(--good)' : 'var(--warn)' }} /></div>
           </div>
           <div className="meter">
-            <div className="meter-head"><span>Material budget</span><span className="num">{aud(plan.materialTotal)} / {aud(req.budgetAud)}</span></div>
+            <div className="meter-head"><span>Material budget each month</span><span className="num">{aud(plan.materialTotal)} of {aud(req.budgetAud)}</span></div>
             <div className="track"><div className="fill" style={{ width: `${Math.min(100, spend)}%`, background: inBudget ? 'var(--good)' : 'var(--danger)' }} /></div>
           </div>
         </div>
         <dl className="stat-grid">
-          <div><dt>Avg landed cost</dt><dd className="num">{aud(plan.avgLandedPerTonne)}/t</dd></div>
-          <div><dt>{inBudget ? 'Under budget' : 'Over budget'}</dt><dd className="num">{aud(Math.abs(plan.budgetLeft))}</dd></div>
-          <div><dt>CO₂e avoided</dt><dd className="num">{fmtInt(plan.avoidedCo2eT)} t/mo</dd></div>
-          <div><dt>Freight emissions</dt><dd className="num">{co2e(plan.freightCo2eT)}/mo</dd></div>
+          <div><dt>Average delivered cost</dt><dd className="num">{aud(plan.avgLandedPerTonne)}<small>per tonne</small></dd></div>
+          <div><dt>{inBudget ? 'Under budget' : 'Over budget'}</dt><dd className="num">{aud(Math.abs(plan.budgetLeft))}<small>per month</small></dd></div>
+          <div><dt>Emissions avoided</dt><dd className="num">{tonnes(plan.avoidedCo2eT)}<small><abbr title="carbon dioxide equivalent">CO₂e</abbr> per month</small></dd></div>
+          <div><dt>Truck emissions</dt><dd className="num">{co2e(plan.freightCo2eT)}<small><abbr title="carbon dioxide equivalent">CO₂e</abbr> per month</small></dd></div>
         </dl>
       </section>
 
@@ -141,25 +137,25 @@ export function CombinePlanner({ supply, request }: Props) {
             <div className="table-scroll">
               <table className="alloc">
                 <thead>
-                  <tr><th>Partner</th><th className="r">Tonnes / mo</th><th className="r">Material</th><th className="r">Freight</th><th className="r">Landed /t</th><th className="r">Subtotal</th><th /></tr>
+                  <tr><th>Partner</th><th className="r">Tonnes per month</th><th className="r">Price per tonne</th><th className="r">Freight per tonne</th><th className="r">Delivered per tonne</th><th className="r">Monthly total</th><th /></tr>
                 </thead>
                 <tbody>
                   {lines.map(a => (
                     <tr key={a.listing.id}>
                       <td>
                         <div className="alloc-name">
-                          <span className="code small" style={{ '--c': MATERIALS[a.listing.material].color } as CSSProperties}>{MATERIALS[a.listing.material].code}</span>
+                          <span className="code small" style={{ '--c': MATERIALS[a.listing.material].color } as CSSProperties} title={MATERIALS[a.listing.material].label}>{MATERIALS[a.listing.material].code}</span>
                           <div>
                             <Link to={`/listing/${a.listing.id}`}>{a.listing.company}</Link>
                             {a.listing.verified && <span className="verified"><BadgeCheck size={13} /></span>}
-                            <small>{a.listing.suburb}, {a.listing.state} · {fmtInt(a.distanceKm)} km · {a.freight.trips}× {TRUCKS[a.freight.truck].label.toLowerCase()}</small>
+                            <small>{a.listing.suburb}, {a.listing.state} · {fmtInt(a.distanceKm)} km · {a.freight.trips} {a.freight.trips === 1 ? 'trip' : 'trips'} by {TRUCKS[a.freight.truck].label.toLowerCase()}</small>
                           </div>
                         </div>
                       </td>
                       <td className="r">
-                        <input className="t-input num" type="number" min={0} max={Math.round(a.capacityT)} value={Math.round(a.tonnes)}
-                          aria-label={`Tonnes from ${a.listing.company}`} onChange={e => setTonnes(a.listing.id, Number(e.target.value))} />
-                        <small>of {fmtInt(a.capacityT)}</small>
+                        <NumberField className="t-input" min={0} max={Math.round(a.capacityT)} value={Math.round(a.tonnes)}
+                          aria-label={`Tonnes per month from ${a.listing.company}`} onChange={v => setTonnes(a.listing.id, v ?? 0)} />
+                        <small>of {tonnes(a.capacityT)} available</small>
                       </td>
                       <td className="r num">{aud(a.listing.priceAud)}</td>
                       <td className="r num">{aud(a.freight.perTonne)}</td>
@@ -170,7 +166,7 @@ export function CombinePlanner({ supply, request }: Props) {
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr><td>Total</td><td className="r num">{fmtInt(plan.tonnes)} t</td><td /><td /><td className="r num">{aud(plan.avgLandedPerTonne)}</td><td className="r num"><b>{aud(plan.total)}</b></td><td /></tr>
+                  <tr><td>Total</td><td className="r num">{tonnes(plan.tonnes)}</td><td /><td /><td className="r num">{aud(plan.avgLandedPerTonne)}</td><td className="r num"><b>{aud(plan.total)}</b></td><td /></tr>
                 </tfoot>
               </table>
             </div>
@@ -178,10 +174,8 @@ export function CombinePlanner({ supply, request }: Props) {
           {spare.length > 0 && (
             <div className="add-row">
               <Plus size={15} />
-              <select id="c-add" value="" onChange={e => add(e.target.value)} aria-label="Add a supplier">
-                <option value="" disabled>Add another supplier…</option>
-                {spare.map(s => <option key={s.id} value={s.id}>{s.company} · {s.suburb}, {s.state} · {aud(s.priceAud)}/t</option>)}
-              </select>
+              <Select<string> id="c-add" className="grow" value={null} placeholder="Add another supplier…" aria-label="Add a supplier" onChange={add}
+                options={spare.map(s => ({ value: s.id, label: s.company, hint: `${s.suburb}, ${s.state} · ${aud(s.priceAud)} per tonne` }))} />
             </div>
           )}
           <div className="add-row">

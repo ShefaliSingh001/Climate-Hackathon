@@ -12,7 +12,7 @@ This folder is the ResourceX UI. The backend, dataset and AI matching are built 
 
 - Only edit files inside `frontend/`. Root files (`README.md`, `.gitignore`, `CLAUDE.md`) are shared: append, don't rewrite.
 - Never touch `backend/` from a frontend change.
-- All backend calls go through `src/api/client.ts`. Components never call `fetch` directly.
+- All backend calls go through `src/api/client.ts`. Components never call `fetch` directly. The one exception is `lib/routing.ts`, which calls a public road-routing service (not our backend).
 - If the data shape must change, update `src/api/types.ts`, `API_CONTRACT.md` and the mock together, and note it in the log so the backend side sees it.
 - Run `npm run typecheck` and `npm run build` before committing.
 
@@ -39,16 +39,19 @@ src/
     brand/      Logo (mark + live wordmark), DotField (animated dot-wave canvas)
     home/       nswMap.ts (pre-projected NSW outline + sample pins for the homepage)
     layout/     TopBar (role-based nav, search, account menu)
-    listings/   FilterBar (state, materials, sort, distance), ListingCard (compact rail row),
+    listings/   FilterBar (state, materials, sort, distance), ListingCard (rail card: position + RankBars),
+                RankBars (Material / Distance / Price / Reliability bars labelled with positions),
                 LogisticsEstimate (freight + landed cost), EnquiryForm
     map/        MarketMap (pins, state outline, radius, controls), LayerSwitcher, layers.ts (tile sources),
-                RouteMap (your site + partners with dashed lines)
+                RouteMap (your site + partners, road routes via lib/routing.ts, dashed line fallback)
     sourcing/   CombinePlanner (split one demand across several suppliers, editable)
-    ui/         CircularityChart
+    ui/         CircularityChart, Select (custom accessible dropdown; use it, never a native <select>),
+                NumberField (text-based number input that can be cleared; use it, never type="number")
   data/         au-states.json (state boundaries, Natural Earth via datamaps, simplified)
-  hooks/        useAsync (fetch state), useListings (load + filter + sort for the marketplace)
+  hooks/        useAsync (fetch state), useListings (load + filter + rank + sort for the marketplace), useRoute
   lib/          materials.ts (labels, colours, CO2 factors), regions.ts (states, bounds, HOME_SITE),
-                format.ts (A$, tonnes), geo.ts (distance), logistics.ts (truck rates, freight estimate),
+                format.ts (aud, tonnes, volume, PRICE_NOTE), geo.ts (straight-line distance), logistics.ts (truck rates, freight estimate),
+                ranking.ts (positions per factor, no scores), routing.ts (OSRM road routes),
                 sourcing.ts (multi-supplier order planner)
   pages/        Home (/), Auth (Login, Signup), Marketplace (/marketplace), ListingDetail (/listing/:id),
                 Matches (/sourcing, ranked + combine), MyListings, SellNew, Impact
@@ -61,13 +64,15 @@ src/
 - Colours only from `styles/tokens.css` variables. Dark mode is redefined there, so don't hard-code hex in components (material colours in `lib/materials.ts` are the exception).
 - Fonts: IBM Plex Sans for UI, IBM Plex Mono with tabular numbers (`.num`) for prices, tonnes and scores, Instrument Sans for homepage and auth headings, Montserrat for the wordmark only.
 - Material colours were checked for colour-blind separation; pins also show a short code (Cu, Al, Fe…) so colour is never the only signal. Supply listings are round pins, buyer requests are square.
-- Money is A$ per tonne, distances in km (`lib/format.ts`). Australian spelling.
+- Plain language for non-technical users: no unit abbreviations in the UI. Write "25 tonnes per fortnight", "$13,050 per tonne" with the helpers in `lib/format.ts` (never "t", "t/fn", "A$/t", "mo"). Show `PRICE_NOTE` (AUD, excluding GST) once per page instead of "A$". "km" is fine. Wrap CO₂e in `<abbr title="carbon dioxide equivalent">` where space allows. Australian spelling.
+- Say "newly sourced" materials, never "virgin", in UI copy (API field names like `virginPriceAud` stay).
+- No match scores in the UI. Show positions ("#2 of 18", "1st nearest") from `lib/ranking.ts`; scores only decide the order.
 - Anything not real data is labelled: "Sample" badges on the impact page, "Demo mode" notes when the mock API is active.
 
 ## Known gaps / ideas
 
 - Auth is browser-only (demo). See `AUTH.md` for moving it to the backend.
-- Road distance is straight line × 1.25 (`lib/geo.ts`).
+- Road routes come from the public OSRM demo server (fair use, no SLA). For production use a hosted router (self-hosted OSRM, Valhalla, GraphHopper or Mapbox). Without a route, distance falls back to straight line × 1.25 (`lib/geo.ts`).
 - Freight rates and the order planner run in the browser (`lib/logistics.ts`, `lib/sourcing.ts`); the backend can take them over later.
 - No marker clustering yet; fine for ~50 listings.
 - Bundle is ~780 kB, mostly Leaflet + state boundaries; code-split if it matters.

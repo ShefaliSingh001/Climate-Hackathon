@@ -10,6 +10,8 @@ import type { Role } from '../auth/types';
 import { DotField } from '../components/brand/DotField';
 import { Logo } from '../components/brand/Logo';
 import { PLACES, placeLabel, toSite } from '../lib/places';
+import { NumberField } from '../components/ui/NumberField';
+import { Select } from '../components/ui/Select';
 
 function AuthLayout({ children }: { children: ReactNode }) {
   return (
@@ -155,8 +157,8 @@ export function Signup() {
     if (!/^\d{11}$/.test(form.abn.replace(/\s/g, ''))) errs.abn = 'Enter your 11-digit ABN.';
     if (!(biz.tonnes > 0)) errs.tonnes = 'Enter tonnes per month above zero.';
     if (seller && !biz.detail.trim()) errs.detail = 'Describe the material you take in, e.g. "Steel offcuts and swarf".';
-    if (seller && !(biz.priceAud > 0)) errs.priceAud = 'Enter your asking price in A$ per tonne.';
-    if (!seller && !(biz.budgetAud > 0)) errs.budgetAud = 'Enter your total budget in A$.';
+    if (seller && !(biz.priceAud > 0)) errs.priceAud = 'Enter your asking price in dollars per tonne.';
+    if (!seller && !(biz.budgetAud > 0)) errs.budgetAud = 'Enter your total budget in dollars.';
     if (!seller && (!biz.orderBy || !biz.deliverBy)) errs.deliverBy = 'Enter both dates.';
     else if (!seller && biz.deliverBy < biz.orderBy) errs.deliverBy = 'Delivery can\'t be before the order date.';
     setErrors(errs);
@@ -189,8 +191,6 @@ export function Signup() {
     }
   }
 
-  const num = (v: number) => (v ? String(v) : '');
-
   return (
     <AuthLayout>
       <h1>Create your account</h1>
@@ -218,25 +218,22 @@ export function Signup() {
             <input id="su-name" autoComplete="name" value={form.name} onChange={e => update({ name: e.target.value })} aria-invalid={!!errors.name} />
             {errors.name && <span className="err">{errors.name}</span>}
           </label>
-          <label className="field">{role === 'buyer' ? 'Delivery site' : 'Yard location'}
-            <select id="su-place" value={form.place} onChange={e => update({ place: Number(e.target.value) })}>
-              {PLACES.map((p, i) => <option key={placeLabel(p)} value={i}>{placeLabel(p)}</option>)}
-            </select>
-          </label>
+          <div className="field"><label htmlFor="su-place">{role === 'buyer' ? 'Delivery site' : 'Yard location'}</label>
+            <Select<number> id="su-place" value={form.place} onChange={i => update({ place: i })}
+              options={PLACES.map((p, i) => ({ value: i, label: placeLabel(p) }))} />
+          </div>
         </div>
         <fieldset className="auth-section">
           <legend>{seller ? 'What you sell' : 'What you need'}</legend>
           <div className="form-row">
-            <label className="field">{seller ? 'Output material' : 'Required material'}
-              <select id="su-material" value={biz.material} onChange={e => updateBiz({ material: e.target.value as MaterialKey })}>
-                {SIGNUP_MATERIALS.map(k => <option key={k} value={k}>{MATERIALS[k].label}</option>)}
-              </select>
-            </label>
-            <label className="field">{seller ? 'Output grade' : 'Grade required'}
-              <select id="su-grade" value={biz.grade} onChange={e => updateBiz({ grade: e.target.value })}>
-                {Object.values(GRADES).map(g => <option key={g}>{g}</option>)}
-              </select>
-            </label>
+            <div className="field"><label htmlFor="su-material">{seller ? 'Material you produce' : 'Material you need'}</label>
+              <Select<MaterialKey> id="su-material" value={biz.material} onChange={k => updateBiz({ material: k })}
+                options={SIGNUP_MATERIALS.map(k => ({ value: k, label: MATERIALS[k].label, color: MATERIALS[k].color }))} />
+            </div>
+            <div className="field"><label htmlFor="su-grade">{seller ? 'Grade you produce' : 'Grade required'}</label>
+              <Select<string> id="su-grade" value={biz.grade} onChange={g => updateBiz({ grade: g })}
+                options={Object.values(GRADES).map(g => ({ value: g, label: g }))} />
+            </div>
           </div>
           <label className="field">{seller ? 'Input materials you process' : 'What you make with it (optional)'}
             <input id="su-detail" value={biz.detail} placeholder={seller ? 'Steel offcuts, swarf and plate' : 'Structural sections, window frames…'}
@@ -244,18 +241,18 @@ export function Signup() {
             {errors.detail && <span className="err">{errors.detail}</span>}
           </label>
           <div className="form-row">
-            <label className="field">{seller ? 'Output (tonnes / month)' : 'Required (tonnes / month)'}
-              <input id="su-tonnes" type="number" min={0} value={num(biz.tonnes)} onChange={e => updateBiz({ tonnes: Number(e.target.value) })} aria-invalid={!!errors.tonnes} />
+            <label className="field" htmlFor="su-tonnes">{seller ? 'How much you produce each month' : 'How much you need each month'}
+              <NumberField id="su-tonnes" min={0} value={biz.tonnes || null} onChange={v => updateBiz({ tonnes: v ?? 0 })} suffix="tonnes" aria-invalid={!!errors.tonnes} />
               {errors.tonnes && <span className="err">{errors.tonnes}</span>}
             </label>
             {seller ? (
-              <label className="field">Price (A$ / tonne)
-                <input id="su-price" type="number" min={0} value={num(biz.priceAud)} onChange={e => updateBiz({ priceAud: Number(e.target.value) })} aria-invalid={!!errors.priceAud} />
+              <label className="field" htmlFor="su-price">Asking price per tonne
+                <NumberField id="su-price" min={0} value={biz.priceAud || null} onChange={v => updateBiz({ priceAud: v ?? 0 })} prefix="$" aria-invalid={!!errors.priceAud} />
                 {errors.priceAud && <span className="err">{errors.priceAud}</span>}
               </label>
             ) : (
-              <label className="field">Total budget (A$, excl. freight)
-                <input id="su-budget" type="number" min={0} step={1000} value={num(biz.budgetAud)} onChange={e => updateBiz({ budgetAud: Number(e.target.value) })} aria-invalid={!!errors.budgetAud} />
+              <label className="field" htmlFor="su-budget">Total budget (excluding freight)
+                <NumberField id="su-budget" min={0} value={biz.budgetAud || null} onChange={v => updateBiz({ budgetAud: v ?? 0 })} prefix="$" aria-invalid={!!errors.budgetAud} />
                 {errors.budgetAud && <span className="err">{errors.budgetAud}</span>}
               </label>
             )}

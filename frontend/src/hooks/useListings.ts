@@ -6,6 +6,7 @@ import { useSite } from '../auth/AuthProvider';
 import { roadKm } from '../lib/geo';
 import { useMarket } from '../state/store';
 import { useAsync } from './useAsync';
+import { rankListings } from '../lib/ranking';
 
 export interface ListingView extends Listing {
   distanceKm: number;
@@ -25,7 +26,8 @@ export function useListings() {
   // Region scoping is applied before the material filter so chip counts reflect the chosen state.
   const inRegion = useMemo(() => all.filter(l => region === 'AU' || l.state === region), [all, region]);
 
-  const visible = useMemo(() => {
+  // Filtered set, then ranked against each other, then sorted for display.
+  const { visible, rankings } = useMemo(() => {
     const q = query.trim().toLowerCase();
     const out = inRegion.filter(l =>
       (!materials.length || materials.includes(l.material)) &&
@@ -35,13 +37,14 @@ export function useListings() {
     );
     const ratio = (l: Listing) => (l.virginPriceAud ? l.priceAud / l.virginPriceAud : 1);
     const by: Record<typeof sort, (a: ListingView, b: ListingView) => number> = {
-      match: (a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0),
+      match: (a, b) => (rankings.get(a.id)?.position ?? 0) - (rankings.get(b.id)?.position ?? 0),
       distance: (a, b) => a.distanceKm - b.distanceKm,
       price: (a, b) => ratio(a) - ratio(b),
       volume: (a, b) => b.tonnes - a.tonnes,
     };
-    return out.sort(by[sort]);
+    const rankings = rankListings(out);
+    return { visible: out.sort(by[sort]), rankings };
   }, [inRegion, materials, verifiedOnly, radiusKm, query, sort]);
 
-  return { all, inRegion, visible, loading, error };
+  return { all, inRegion, visible, rankings, loading, error };
 }

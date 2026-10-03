@@ -1,7 +1,7 @@
 import { api } from '../api/client';
 import { useAsync } from '../hooks/useAsync';
 import { MATERIALS } from '../lib/materials';
-import { fmtInt } from '../lib/format';
+import { fmtInt, tonnes } from '../lib/format';
 import { CircularityChart } from '../components/ui/CircularityChart';
 
 export function Impact() {
@@ -11,7 +11,7 @@ export function Impact() {
 
   const kpis = data ? [
     ['Tonnes recirculated', fmtInt(data.tonnesRecirculated), 'this quarter'],
-    ['CO₂e avoided', `${fmtInt(data.co2eAvoidedT)} t`, 'vs virgin feedstock'],
+    ['Emissions avoided', `${fmtInt(data.co2eAvoidedT)} tonnes`, 'of CO₂e, compared with newly sourced materials'],
     ['Active verified sites', fmtInt(data.activeVerifiedSites), 'across Australia'],
     ['Matches converted', fmtInt(data.matchesConverted), 'into supply contracts'],
   ] : [];
@@ -21,7 +21,7 @@ export function Impact() {
       <div className="page-inner">
         <div className="page-head">
           <h1>Circularity impact</h1>
-          <p>Every tonne traded here replaces virgin feedstock. This view tracks what the network has recirculated and how it maps to the COP31 Green Industrialisation goal: a 15% global circular material-use rate by 2035.</p>
+          <p>Every tonne traded here replaces newly sourced material. This view tracks what the network has recirculated and how it maps to the COP31 Green Industrialisation goal: a 15% global circular material-use rate by 2035.</p>
         </div>
 
         <dl className="kpis">
@@ -44,7 +44,7 @@ export function Impact() {
                   <div key={b.material} className="hbar">
                     <span>{MATERIALS[b.material].label}</span>
                     <div className="track"><div className="fill" style={{ width: `${Math.max(1.5, (b.tonnes / max) * 100)}%`, background: MATERIALS[b.material].color }} /></div>
-                    <span className="num">{fmtInt(b.tonnes)} t</span>
+                    <span className="num">{tonnes(b.tonnes)}</span>
                   </div>
                 ))}
               </div>

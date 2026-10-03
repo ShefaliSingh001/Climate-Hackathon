@@ -5,7 +5,7 @@ import { api } from '../api/client';
 import { useAuth, useSite } from '../auth/AuthProvider';
 import { useAsync } from '../hooks/useAsync';
 import { MATERIALS } from '../lib/materials';
-import { aud, fmtInt, monthlyTonnes, per } from '../lib/format';
+import { aud, monthlyTonnes, tonnes, volume } from '../lib/format';
 
 /** A seller's own supply listings, matched on ABN. */
 export function MyListings() {
@@ -29,8 +29,8 @@ export function MyListings() {
 
         <dl className="kpis three">
           <div className="kpi"><dt>Active listings</dt><dd>{mine.length}</dd></div>
-          <div className="kpi"><dt>Offered per month</dt><dd>{fmtInt(monthly)} t</dd></div>
-          <div className="kpi"><dt>CO₂e buyers avoid</dt><dd>{fmtInt(avoided)} t<small>per month at full volume</small></dd></div>
+          <div className="kpi"><dt>Offered per month</dt><dd>{tonnes(monthly)}</dd></div>
+          <div className="kpi"><dt>CO₂e buyers avoid</dt><dd>{tonnes(avoided)}<small>per month at full volume</small></dd></div>
         </dl>
 
         <section className="panel table-panel">
@@ -51,13 +51,13 @@ export function MyListings() {
                     <tr key={l.id}>
                       <td>
                         <div className="alloc-name">
-                          <span className="code small" style={{ '--c': MATERIALS[l.material].color } as CSSProperties}>{MATERIALS[l.material].code}</span>
+                          <span className="code small" style={{ '--c': MATERIALS[l.material].color } as CSSProperties} title={MATERIALS[l.material].label}>{MATERIALS[l.material].code}</span>
                           <div><Link to={`/listing/${l.id}`}>{MATERIALS[l.material].label}</Link><small>{l.suburb}, {l.state}</small></div>
                         </div>
                       </td>
                       <td>{l.grade}<small>{l.form}</small></td>
-                      <td className="r num">{fmtInt(l.tonnes)} t/{per(l.frequency)}</td>
-                      <td className="r num">{aud(l.priceAud)}/t</td>
+                      <td className="r">{volume(l.tonnes, l.frequency)}</td>
+                      <td className="r num">{aud(l.priceAud)} <small>per tonne</small></td>
                       <td>{l.verified ? <span className="tag good"><BadgeCheck size={12} /> Verified</span> : <span className="tag">Awaiting checks</span>}</td>
                       <td><Link className="icon-btn" to={`/listing/${l.id}`} aria-label={`Open ${MATERIALS[l.material].label} listing`}><ChevronRight size={16} /></Link></td>
                     </tr>

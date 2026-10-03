@@ -12,8 +12,12 @@ export function Marketplace() {
   const navigate = useNavigate();
   const { mode, region, hoveredId, set } = useMarket();
   const HOME_SITE = useSite();
-  const { all, inRegion, visible, loading, error } = useListings();
-  const open = (id: string) => { set({ hoveredId: null }); navigate(`/listing/${id}`); };
+  const { all, inRegion, visible, rankings, loading, error } = useListings();
+  const open = (id: string) => {
+    set({ hoveredId: null });
+    const r = rankings.get(id);
+    navigate(`/listing/${id}`, { state: r ? { rank: { position: r.position, of: r.of } } : undefined });
+  };
 
   const noun = mode === 'supply' ? 'supply listings' : 'buyer requests';
 
@@ -25,6 +29,7 @@ export function Marketplace() {
           <span><strong className="num">{visible.length}</strong> {noun} in {region === 'AU' ? 'Australia' : regionByCode(region).name}</span>
           <span>from {HOME_SITE.suburb}, {HOME_SITE.state}</span>
         </div>
+        <p className="rank-legend">Ranked against each other on material quality, distance, price and reliability. "1st" is best. Prices in Australian dollars per tonne, excluding GST.</p>
         <div className="list" onMouseLeave={() => set({ hoveredId: null })}>
           {error && <div className="notice error" role="alert"><AlertTriangle size={16} />Couldn't load listings: {error.message}</div>}
           {loading && !all.length && [0, 1, 2, 3, 4, 5].map(i => <div key={i} className="skeleton" />)}
@@ -35,6 +40,7 @@ export function Marketplace() {
             <ListingCard
               key={l.id}
               listing={l}
+              ranking={rankings.get(l.id)}
               hovered={l.id === hoveredId}
               onOpen={() => open(l.id)}
               onHover={on => set({ hoveredId: on ? l.id : null })}
@@ -43,7 +49,7 @@ export function Marketplace() {
         </div>
       </aside>
 
-      <MarketMap listings={visible} onOpen={open} />
+      <MarketMap listings={visible} rankings={rankings} onOpen={open} />
     </main>
   );
 }

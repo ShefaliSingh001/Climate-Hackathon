@@ -4,6 +4,7 @@ import type { ListingView } from '../../hooks/useListings';
 import { MATERIALS, MATERIAL_KEYS } from '../../lib/materials';
 import { REGIONS, type RegionCode } from '../../lib/regions';
 import { useMarket, type SortKey } from '../../state/store';
+import { Select } from '../ui/Select';
 
 export function FilterBar({ inRegion }: { inRegion: ListingView[] }) {
   const { region, materials, sort, radiusKm, verifiedOnly, set, setRegion, toggleMaterial } = useMarket();
@@ -17,9 +18,8 @@ export function FilterBar({ inRegion }: { inRegion: ListingView[] }) {
     <div className="filters">
       <div className="region-row">
         <label htmlFor="region">State</label>
-        <select id="region" className="select" value={region} onChange={e => setRegion(e.target.value as RegionCode)}>
-          {REGIONS.map(r => <option key={r.code} value={r.code}>{r.code === 'AU' ? r.name : `${r.name} (${r.code})`}</option>)}
-        </select>
+        <Select<RegionCode> id="region" className="region-select" value={region} onChange={setRegion}
+          options={REGIONS.map(r => ({ value: r.code, label: r.code === 'AU' ? r.name : `${r.name} (${r.code})` }))} />
       </div>
 
       <div className="chips" role="group" aria-label="Material">
@@ -38,21 +38,19 @@ export function FilterBar({ inRegion }: { inRegion: ListingView[] }) {
       </div>
 
       <div className="filter-row">
-        <label className="sr-only" htmlFor="sort">Sort</label>
-        <select id="sort" className="select" value={sort} onChange={e => set({ sort: e.target.value as SortKey })}>
-          <option value="match">Sort: Best match</option>
-          <option value="distance">Sort: Nearest</option>
-          <option value="price">Sort: Price vs virgin</option>
-          <option value="volume">Sort: Volume</option>
-        </select>
-        <label className="sr-only" htmlFor="radius">Distance</label>
-        <select id="radius" className="select" value={radiusKm} onChange={e => set({ radiusKm: Number(e.target.value) })}>
-          <option value={0}>Any distance</option>
-          <option value={50}>Within 50 km</option>
-          <option value={150}>Within 150 km</option>
-          <option value={400}>Within 400 km</option>
-          <option value={1000}>Within 1,000 km</option>
-        </select>
+        <Select<SortKey> id="sort" size="sm" prefix="Sort" aria-label="Sort by" value={sort} onChange={v => set({ sort: v })} options={[
+          { value: 'match', label: 'Best ranked' },
+          { value: 'distance', label: 'Nearest' },
+          { value: 'price', label: 'Cheapest vs newly sourced' },
+          { value: 'volume', label: 'Largest volume' },
+        ]} />
+        <Select<number> id="radius" size="sm" prefix="Distance" aria-label="Distance" value={radiusKm} onChange={v => set({ radiusKm: v })} options={[
+          { value: 0, label: 'Any' },
+          { value: 50, label: 'Within 50 km' },
+          { value: 150, label: 'Within 150 km' },
+          { value: 400, label: 'Within 400 km' },
+          { value: 1000, label: 'Within 1,000 km' },
+        ]} />
         <label className="toggle">
           <input id="verified" type="checkbox" checked={verifiedOnly} onChange={e => set({ verifiedOnly: e.target.checked })} /> Verified only
         </label>
