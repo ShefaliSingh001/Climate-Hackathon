@@ -18,3 +18,9 @@ venv/
 .DS_Store
 .vscode/
 .idea/
+
+# Local database (rebuild with backend/scripts/load_db.py)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
