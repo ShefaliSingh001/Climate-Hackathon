@@ -98,9 +98,9 @@ export function MarketMap({ listings, selectedId, onSelect, children }: Props) {
         maxBounds={[[-50, 100], [0, 170]]}
         worldCopyJump={false}
       >
-        <TileLayer key={layer} url={def.base.url} attribution={def.base.attribution} maxZoom={def.base.maxZoom} subdomains={def.base.subdomains ?? 'abc'} />
+        <TileLayer key={layer} url={def.base.url} attribution={def.base.attribution} maxZoom={def.base.maxZoom} subdomains={def.base.subdomains ?? ''} />
         {def.overlay && (
-          <TileLayer key={`${layer}-labels`} url={def.overlay.url} attribution={def.overlay.attribution} maxZoom={def.overlay.maxZoom} subdomains={def.overlay.subdomains ?? 'abc'} />
+          <TileLayer key={`${layer}-labels`} url={def.overlay.url} attribution={def.overlay.attribution} maxZoom={def.overlay.maxZoom} subdomains={def.overlay.subdomains ?? ''} />
         )}
         <GeoJSON key={`${region}-${layer}`} data={auStates as FeatureCollection} style={stateStyle} />
         {radiusKm > 0 && (

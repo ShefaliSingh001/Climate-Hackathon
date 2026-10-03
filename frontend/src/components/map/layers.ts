@@ -16,30 +16,34 @@ export interface LayerDef {
   swatch: { water: string; land: string };
 }
 
-const CARTO_ATTR = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services';
+const esri = (service: string, attribution: string, maxZoom = 19): TileDef => ({
+  url: `${ESRI}/${service}/MapServer/tile/{z}/{y}/{x}`,
+  attribution,
+  maxZoom,
+});
+const ESRI_ATTR = 'Tiles &copy; Esri';
 
-// Free tile sources, no API key needed. Add Mapbox/Google here later as another entry.
+// Keyless tile sources. CARTO (basemaps.cartocdn.com) started watermarking keyless tiles with
+// "API KEY REQUIRED" in Aug 2026, so it is not used. To add a keyed provider (CARTO, Mapbox,
+// MapTiler), read the key from an env var such as VITE_MAP_TILES_KEY and add an entry here.
 export const LAYERS: Record<MapLayerKey, LayerDef> = {
   map: {
     label: 'Map',
-    base: { url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', attribution: CARTO_ATTR, maxZoom: 19, subdomains: 'abcd' },
+    base: esri('World_Street_Map', `${ESRI_ATTR} &mdash; Esri, HERE, Garmin, USGS, NGA, EPA, NPS`),
     swatch: { water: '#C6DCE8', land: '#F3F5F1' },
   },
   satellite: {
     label: 'Satellite',
-    base: {
-      url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      attribution: 'Imagery &copy; Esri, Maxar, Earthstar Geographics',
-      maxZoom: 19,
-    },
-    overlay: { url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png', attribution: CARTO_ATTR, maxZoom: 19, subdomains: 'abcd' },
+    base: esri('World_Imagery', `${ESRI_ATTR} &mdash; Esri, Maxar, Earthstar Geographics`),
+    overlay: esri('Reference/World_Boundaries_and_Places', ESRI_ATTR),
     swatch: { water: '#14273B', land: '#3E4A33' },
   },
   terrain: {
     label: 'Terrain',
     base: {
       url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-      attribution: 'Map data &copy; OpenStreetMap contributors, SRTM | Style &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)',
+      attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, SRTM | Style &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)',
       maxZoom: 17,
       subdomains: 'abc',
     },
@@ -47,7 +51,8 @@ export const LAYERS: Record<MapLayerKey, LayerDef> = {
   },
   dark: {
     label: 'Dark',
-    base: { url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', attribution: CARTO_ATTR, maxZoom: 19, subdomains: 'abcd' },
+    base: esri('Canvas/World_Dark_Gray_Base', `${ESRI_ATTR} &mdash; Esri, HERE, Garmin, OpenStreetMap contributors`, 16),
+    overlay: esri('Canvas/World_Dark_Gray_Reference', ESRI_ATTR, 16),
     swatch: { water: '#0F1A20', land: '#1E2925' },
   },
 };
