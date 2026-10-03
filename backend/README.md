@@ -9,8 +9,9 @@ pip install -r backend/requirements.txt
 python backend/scripts/load_db.py
 ```
 
-This creates `backend/db/circulink.db` from `backend/db/schema.sql` and loads the two spreadsheets in the repo
-root. The `.db` file is not committed; run the loader on each machine. No account, server or keys needed.
+The database is committed as `backend/db/circulink.db`, already loaded, so you can open it straight away. The
+commands above rebuild it from `backend/db/schema.sql` and the two spreadsheets in the repo root; run them after the
+spreadsheets or schema change, then commit the updated `.db`. No account, server or keys needed.
 
 Open it with any SQLite tool, e.g. `sqlite3 backend/db/circulink.db` or [DB Browser for SQLite](https://sqlitebrowser.org/).
 

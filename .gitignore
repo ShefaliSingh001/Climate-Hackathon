@@ -19,8 +19,7 @@ venv/
 .vscode/
 .idea/
 
-# Local database (rebuild with backend/scripts/load_db.py)
-*.db
+# SQLite temp files (the .db itself is committed)
 *.db-journal
 *.db-wal
 *.db-shm
