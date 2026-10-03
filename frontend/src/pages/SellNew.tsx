@@ -9,6 +9,8 @@ import { GRADES, MATERIALS, MATERIAL_KEYS } from '../lib/materials';
 import { REGIONS } from '../lib/regions';
 import { useAuth } from '../auth/AuthProvider';
 import { LAYERS } from '../components/map/layers';
+import { NumberField } from '../components/ui/NumberField';
+import { Select } from '../components/ui/Select';
 
 const CERTS = ['EPA licence', 'ISO 14001', 'ISO 9001', 'APCO member', 'NTCRS approved', 'drumMUSTER collector'];
 const STATES = REGIONS.filter(r => r.code !== 'AU').map(r => r.code as StateCode);
@@ -42,7 +44,7 @@ export function SellNew() {
     const e: Errors = {};
     if (!form.grade.trim()) e.grade = 'Enter the grade buyers will search for, e.g. "#1 bare bright".';
     if (!(form.tonnes > 0)) e.tonnes = 'Enter a volume above zero.';
-    if (!(form.priceAud > 0)) e.price = 'Enter an asking price in A$ per tonne.';
+    if (!(form.priceAud > 0)) e.price = 'Enter an asking price in dollars per tonne.';
     if (!form.suburb.trim()) e.suburb = 'Enter the suburb where the material is collected.';
     if (!isMock && !/^\d{11}$/.test((form.abn ?? '').replace(/\s/g, ''))) e.abn = 'Enter your 11-digit ABN.';
     return e;
@@ -93,26 +95,24 @@ export function SellNew() {
             <section className="panel form">
               <h2>Material</h2>
               <div className="form-row">
-                <label className="field">Material
-                  <select id="s-material" value={form.material} onChange={e => update({ material: e.target.value as MaterialKey })}>
-                    {MATERIAL_KEYS.map(k => <option key={k} value={k}>{MATERIALS[k].label}</option>)}
-                  </select>
-                </label>
-                <label className="field">Grade
+                <div className="field"><label htmlFor="s-material">Material</label>
+                  <Select<MaterialKey> id="s-material" value={form.material} onChange={k => update({ material: k })}
+                    options={MATERIAL_KEYS.map(k => ({ value: k, label: MATERIALS[k].label, color: MATERIALS[k].color }))} />
+                </div>
+                <div className="field"><label htmlFor="s-grade">Grade</label>
                   {isMock
                     ? <input id="s-grade" value={form.grade} placeholder="#1 bare bright (Millberry)" onChange={e => update({ grade: e.target.value })} aria-invalid={!!errors.grade} />
-                    : <select id="s-grade" value={form.grade} onChange={e => update({ grade: e.target.value })}>
-                        {Object.values(GRADES).map(g => <option key={g}>{g}</option>)}
-                      </select>}
+                    : <Select<string> id="s-grade" value={form.grade} onChange={g => update({ grade: g })}
+                        options={Object.values(GRADES).map(g => ({ value: g, label: g }))} />}
                   {errors.grade && <span className="err">{errors.grade}</span>}
-                </label>
+                </div>
               </div>
               <div className="form-row">
                 <label className="field">Form
                   <input id="s-form" value={form.form} placeholder="Granules, bales, loose…" onChange={e => update({ form: e.target.value })} />
                 </label>
-                <label className="field">Purity (%)
-                  <input id="s-purity" type="number" step={0.1} min={0} max={100} value={form.purity ?? ''} placeholder="Leave blank if assay on request" onChange={e => update({ purity: e.target.value === '' ? null : Number(e.target.value) })} />
+                <label className="field" htmlFor="s-purity">Purity
+                  <NumberField id="s-purity" decimals min={0} max={100} value={form.purity} placeholder="Leave blank if tested on request" onChange={v => update({ purity: v })} suffix="%" />
                 </label>
               </div>
             </section>
@@ -120,17 +120,17 @@ export function SellNew() {
             <section className="panel form">
               <h2>Volume and price</h2>
               <div className="form-row three">
-                <label className="field">Tonnes
-                  <input id="s-tonnes" type="number" min={0} value={form.tonnes} onChange={e => update({ tonnes: Number(e.target.value) })} aria-invalid={!!errors.tonnes} />
+                <label className="field" htmlFor="s-tonnes">Amount
+                  <NumberField id="s-tonnes" min={0} value={form.tonnes || null} onChange={v => update({ tonnes: v ?? 0 })} suffix="tonnes" aria-invalid={!!errors.tonnes} />
                   {errors.tonnes && <span className="err">{errors.tonnes}</span>}
                 </label>
-                <label className="field">Every
-                  <select id="s-frequency" value={form.frequency} onChange={e => update({ frequency: e.target.value as Frequency })}>
-                    <option>Weekly</option><option>Fortnightly</option><option>Monthly</option>
-                  </select>
-                </label>
-                <label className="field">Asking A$ / t
-                  <input id="s-price" type="number" min={0} value={form.priceAud || ''} onChange={e => update({ priceAud: Number(e.target.value) })} aria-invalid={!!errors.price} />
+                <div className="field"><label htmlFor="s-frequency">How often</label>
+                  <Select<Frequency> id="s-frequency" value={form.frequency} onChange={f => update({ frequency: f })} options={[
+                    { value: 'Weekly', label: 'Every week' }, { value: 'Fortnightly', label: 'Every fortnight' }, { value: 'Monthly', label: 'Every month' },
+                  ]} />
+                </div>
+                <label className="field" htmlFor="s-price">Asking price per tonne
+                  <NumberField id="s-price" min={0} value={form.priceAud || null} onChange={v => update({ priceAud: v ?? 0 })} prefix="$" aria-invalid={!!errors.price} />
                   {errors.price && <span className="err">{errors.price}</span>}
                 </label>
               </div>
@@ -158,11 +158,9 @@ export function SellNew() {
                   <input id="s-suburb" value={form.suburb} onChange={e => update({ suburb: e.target.value })} aria-invalid={!!errors.suburb} />
                   {errors.suburb && <span className="err">{errors.suburb}</span>}
                 </label>
-                <label className="field">State
-                  <select id="s-state" value={form.state} onChange={e => update({ state: e.target.value as StateCode })}>
-                    {STATES.map(s => <option key={s}>{s}</option>)}
-                  </select>
-                </label>
+                <div className="field"><label htmlFor="s-state">State</label>
+                  <Select<StateCode> id="s-state" value={form.state} onChange={st => update({ state: st })} options={STATES.map(st => ({ value: st, label: st }))} />
+                </div>
               </div>
               <div className="picker-map">
                 <MapContainer center={[form.lat, form.lng]} zoom={9} style={{ height: '100%' }} attributionControl={false}>

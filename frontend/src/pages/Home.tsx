@@ -141,7 +141,7 @@ export function Home() {
             <ul className="problem-list">
               <li><b>6.9%</b><p><strong>The world is going backwards</strong>Global circular material use fell from 9.1% in 2018 to 6.9% in 2025.</p></li>
               <li><b>80%</b><p><strong>Recovered material needs buyers</strong>NSW aims to recover 80% of waste by 2030, yet recyclers still sell through phone calls and brokers. Manufacturers can't see grade, volume or distance before they ask.</p></li>
-              <li><b>A$/t</b><p><strong>Freight decides the deal</strong>A cheaper tonne 600 km away can land dearer than virgin. Without a landed price, buyers default to what they know.</p></li>
+              <li><b>$ per tonne</b><p><strong>Freight decides the deal</strong>A cheaper tonne 600 km away can end up costing more than newly sourced material. Without a landed price, buyers default to what they know.</p></li>
             </ul>
             <p className="src">Sources: Circularity Gap Report 2018–2025 (Circle Economy); NSW Waste and Sustainable Materials Strategy 2041.</p>
           </Reveal>
@@ -186,15 +186,15 @@ export function Home() {
             </ul>
           </Reveal>
           <Reveal className="map-card">
-            <div className="map-head"><b>Copper · 60 t/month to Wetherill Park</b><span>Sample data</span></div>
+            <div className="map-head"><b>Copper · 60 tonnes a month to Wetherill Park</b><span>Sample data</span></div>
             <NswMap />
             <div className="order">
               <h4>Combined order <span>Within budget</span></h4>
-              <div className="order-row"><span>Smithfield Cable Recovery</span><span className="num">39 t</span></div>
-              <div className="order-row"><span>Hunter Copper Reclaim</span><span className="num">21 t</span></div>
+              <div className="order-row"><span>Smithfield Cable Recovery</span><span className="num">39 tonnes</span></div>
+              <div className="order-row"><span>Hunter Copper Reclaim</span><span className="num">21 tonnes</span></div>
               <div className="bar"><i /></div>
-              <div className="order-row"><span>Landed cost</span><span className="num">A$12,852/t</span></div>
-              <div className="order-row"><span>vs virgin cathode</span><span className="num good">−15%</span></div>
+              <div className="order-row"><span>Delivered cost</span><span className="num">$12,852 per tonne</span></div>
+              <div className="order-row"><span>vs newly sourced copper</span><span className="num good">−15%</span></div>
             </div>
           </Reveal>
         </div>
@@ -224,7 +224,7 @@ export function Home() {
                 <span className="aud-icon"><Factory size={22} /></span>
                 <span className="eyebrow">Manufacturers</span>
                 <h3>Buy recycled with the numbers in front of you</h3>
-                <p>Compare grade, certification and landed cost against virgin before you call anyone.</p>
+                <p>Compare grade, certification and delivered cost against newly sourced materials before you call anyone.</p>
                 <ul>
                   {['Set demand and budget once', 'Split orders across verified partners', 'Report CO₂e avoided for every tonne'].map(x => <li key={x}><Check size={16} />{x}</li>)}
                 </ul>
@@ -243,10 +243,10 @@ export function Home() {
             <p>ResourceX counts what is delivered and what it avoids, so councils, buyers and investors can see progress toward the COP31 goal.</p>
           </Reveal>
           <Reveal className="impact-grid">
-            <div><b>9.0 t</b><span>CO₂e avoided per tonne of recycled aluminium</span></div>
-            <div><b>3.0 t</b><span>CO₂e avoided per tonne of recycled copper</span></div>
-            <div><b>1.4 t</b><span>CO₂e avoided per tonne of recycled steel</span></div>
-            <div><b>A$/t</b><span>landed cost shown for every route</span></div>
+            <div><b>9.0 tonnes</b><span>of CO₂e avoided per tonne of recycled aluminium</span></div>
+            <div><b>3.0 tonnes</b><span>of CO₂e avoided per tonne of recycled copper</span></div>
+            <div><b>1.4 tonnes</b><span>of CO₂e avoided per tonne of recycled steel</span></div>
+            <div><b>$ per tonne</b><span>delivered cost shown for every route</span></div>
           </Reveal>
           <p className="src">Indicative emissions factors used in the ResourceX prototype. Replace with audited factors before reporting.</p>
         </div>

@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type FormEvent } from 'react';
+import { useMemo, useState, type CSSProperties, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { BadgeCheck, Layers3, ListOrdered, Sparkles, Trophy } from 'lucide-react';
 import { api, isMock } from '../api/client';
@@ -6,7 +6,11 @@ import type { GradeKey, MaterialKey } from '../api/types';
 import { useAsync } from '../hooks/useAsync';
 import { GRADES, MATERIALS, MATERIAL_KEYS } from '../lib/materials';
 import { useSite } from '../auth/AuthProvider';
-import { aud, fmtInt, per } from '../lib/format';
+import { PRICE_NOTE, aud, volume } from '../lib/format';
+import { plainReason, rankBreakdowns } from '../lib/ranking';
+import { NumberField } from '../components/ui/NumberField';
+import { Select } from '../components/ui/Select';
+import { RankBars } from '../components/listings/RankBars';
 import { CombinePlanner } from '../components/sourcing/CombinePlanner';
 
 interface Requirement {
@@ -53,6 +57,7 @@ export function Matches() {
     () => api.findMatches({ material: submitted.material, grade: submitted.grade, minPurity: submitted.minPurity, tonnesPerMonth: submitted.tonnesPerMonth, maxPriceAud: ceiling, site: HOME_SITE }),
     [submitted],
   );
+  const breakdownRanks = useMemo(() => rankBreakdowns((ranked.data ?? []).map(r => r.breakdown)), [ranked.data]);
   const supply = useAsync(() => api.listListings('supply', HOME_SITE), []);
 
   const update = (patch: Partial<Requirement>) => setDraft(d => ({ ...d, ...patch }));
@@ -70,36 +75,33 @@ export function Matches() {
         <div className="matches-grid">
           <form className="panel form req-form" onSubmit={onSubmit}>
             <h2>Requirement</h2>
-            <label className="field">Material
-              <select id="m-material" value={draft.material} onChange={e => { const r = requirement(e.target.value as MaterialKey); setDraft(r); setSubmitted(r); }}>
-                {OFFERED.map(k => <option key={k} value={k}>{MATERIALS[k].label}</option>)}
-              </select>
-            </label>
+            <div className="field"><label htmlFor="m-material">Material</label>
+              <Select<MaterialKey> id="m-material" value={draft.material} onChange={k => { const r = requirement(k); setDraft(r); setSubmitted(r); }}
+                options={OFFERED.map(k => ({ value: k, label: MATERIALS[k].label, color: MATERIALS[k].color }))} />
+            </div>
             {isMock ? (
-              <label className="field">Minimum purity (%)
-                <input id="m-purity" type="number" step={0.1} min={0} max={100} value={draft.minPurity} onChange={e => update({ minPurity: Number(e.target.value) })} />
+              <label className="field" htmlFor="m-purity">Minimum purity
+                <NumberField id="m-purity" decimals min={0} max={100} value={draft.minPurity} onChange={v => update({ minPurity: v ?? 0 })} suffix="%" />
               </label>
             ) : (
-              <label className="field">Grade
-                <select id="m-grade" value={draft.grade ?? ''} onChange={e => update({ grade: (e.target.value || undefined) as GradeKey | undefined })}>
-                  {(Object.keys(GRADES) as GradeKey[]).map(g => <option key={g} value={g}>{GRADES[g]}</option>)}
-                  <option value="">Any grade</option>
-                </select>
-              </label>
+              <div className="field"><label htmlFor="m-grade">Grade</label>
+                <Select<GradeKey | 'any'> id="m-grade" value={draft.grade ?? 'any'} onChange={g => update({ grade: g === 'any' ? undefined : g })}
+                  options={[...(Object.keys(GRADES) as GradeKey[]).map(g => ({ value: g, label: GRADES[g] })), { value: 'any' as const, label: 'Any grade' }]} />
+              </div>
             )}
-            <label className="field">Demand (tonnes / month)
-              <input id="m-tonnes" type="number" min={1} value={draft.tonnesPerMonth} onChange={e => update({ tonnesPerMonth: Number(e.target.value) })} />
+            <label className="field" htmlFor="m-tonnes">How much you need each month
+              <NumberField id="m-tonnes" min={1} value={draft.tonnesPerMonth || null} onChange={v => update({ tonnesPerMonth: v ?? 0 })} suffix="tonnes" />
             </label>
-            <label className="field">Material budget (A$ / month, excl. freight)
-              <input id="m-budget" type="number" min={1} step={1000} value={draft.budgetAud} onChange={e => update({ budgetAud: Number(e.target.value) })} />
-              <span className="hint">≈ {aud(draft.tonnesPerMonth ? draft.budgetAud / draft.tonnesPerMonth : 0)} per tonne</span>
+            <label className="field" htmlFor="m-budget">Monthly budget for the material (excluding freight)
+              <NumberField id="m-budget" min={1} value={draft.budgetAud || null} onChange={v => update({ budgetAud: v ?? 0 })} prefix="$" />
+              <span className="hint">That's about {aud(draft.tonnesPerMonth ? draft.budgetAud / draft.tonnesPerMonth : 0)} per tonne. {PRICE_NOTE}</span>
             </label>
             <label className="field">Delivery site
               <input id="m-site" value={`${HOME_SITE.name}, ${HOME_SITE.suburb} ${HOME_SITE.state}`} readOnly />
             </label>
             <button className="btn btn-primary" type="submit"><Sparkles size={16} />Update results</button>
             {isMock
-              ? <p className="hint">Demo mode: scores and splits are calculated in the browser. With VITE_API_URL set, ranking comes from the matching model.</p>
+              ? <p className="hint">Demo mode: rankings and splits are worked out in the browser. With VITE_API_URL set, they come from the matching model.</p>
               : <p className="hint">Suppliers must match the material and grade exactly, hold stock in the delivery window (next month) and fit the budget. Freight is estimated separately.</p>}
           </form>
 
@@ -120,28 +122,24 @@ export function Matches() {
                 {ranked.data && ranked.data.length === 0 && <div className="panel empty">No supply listed for this material yet.</div>}
                 {ranked.data?.map((r, i) => {
                   const l = r.listing;
+                  const eligible = r.eligible !== false;
+                  const factors = breakdownRanks[i];
                   return (
                     <article key={l.id} className="mcard" style={{ opacity: ranked.loading || r.eligible === false ? 0.6 : 1 }}>
-                      <span className="rank">#{i + 1}</span>
+                      <div className={`rank-badge${eligible && i < 3 ? ' podium' : ''}`}>{eligible ? <><b>#{i + 1}</b><span>of {ranked.data!.length}</span></> : <span>Not eligible</span>}</div>
                       <div style={{ minWidth: 0 }}>
                         <h3>
-                          <span className="code small" style={{ '--c': MATERIALS[l.material].color } as CSSProperties}>{MATERIALS[l.material].code}</span>
+                          <span className="code small" style={{ '--c': MATERIALS[l.material].color } as CSSProperties} title={MATERIALS[l.material].label}>{MATERIALS[l.material].code}</span>
                           <Link to={`/listing/${l.id}`}>{l.company}</Link>
                           {l.verified && <span className="verified"><BadgeCheck size={15} /></span>}
                           {r.inBestPlan && <span className="tag good" title="Part of the cheapest combined order"><Trophy size={13} /> Best combined order</span>}
                         </h3>
-                        <p>{l.grade} · <span className="num">{fmtInt(l.tonnes)} t/{per(l.frequency)}</span> · <span className="num">{aud(l.priceAud)}/t</span> · {l.suburb}, {l.state}</p>
-                        <p className="why">{r.reasons.join(' · ')}</p>
+                        <p>{l.grade} · {volume(l.tonnes, l.frequency)} · {aud(l.priceAud)} per tonne · {l.suburb}, {l.state}</p>
+                        <p className="why">{r.reasons.map(plainReason).join(' · ')}</p>
                       </div>
                       <div className="bars">
-                        <div className="total"><span>Match score</span><b>{r.score}</b></div>
-                        {(['material', 'distance', 'price', 'reliability'] as const).map(k => (
-                          <div key={k} className="bar">
-                            <span style={{ textTransform: 'capitalize' }}>{k}</span>
-                            <div className="track"><div className="fill" style={{ width: `${r.breakdown[k]}%` }} /></div>
-                            <span className="num">{r.breakdown[k]}</span>
-                          </div>
-                        ))}
+                        <div className="total"><span>{eligible ? 'Position on each factor' : 'Ruled out'}</span></div>
+                        <RankBars factors={factors} of={ranked.data!.length} />
                       </div>
                     </article>
                   );

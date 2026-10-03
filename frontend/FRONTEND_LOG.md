@@ -5,6 +5,31 @@ Anyone (or any Claude session) picking up the frontend should read this before s
 
 ---
 
+## 2026-10-03: Road routes, plain-language units, rankings instead of scores, new inputs
+
+**What**
+- **Road routes.** `lib/routing.ts` asks the public OSRM server for a driving route (no key, cached per pair, 8 s timeout). `RouteMap` draws it as a lime line with a dark casing and a tooltip (km and drive time); while loading or if routing fails it shows a grey dashed straight line. The listing page uses the real road distance and drive time ("about 1 h 50 min"), and the freight estimate uses that distance.
+- **Rankings, no scores.** `lib/ranking.ts` ranks the listings on screen: an overall position ("#3 of 22") plus a position on Material, Distance, Price and Reliability, with relative bars. Ties share a position. The order uses the backend `matchScore` when every listing has one, otherwise a 30/25/20/15 weighting. Map cards (`ListingCard` + `RankBars`), map tooltips, the listing page ("Ranked #3 of 22 suppliers on your map") and Sourcing ranked cards all show positions. "Sort: Best match" is now "Best ranked". A short legend above the list explains the ranking.
+- **Plain units.** No "t", "t/fn", "A$/t" or "mo" anywhere: helpers `tonnes`, `volume`, `aud`, `per` and `PRICE_NOTE` ("All prices are in Australian dollars (AUD), excluding GST.") in `lib/format.ts`. Backend reason strings pass through `plainReason`.
+- **"Newly sourced"** replaces "virgin" in all UI copy (`belowVirgin` → `belowNew`).
+- **NumberField** (`components/ui/NumberField.tsx`) replaces every `type="number"` input. You can clear it (no more forced 0), leading zeros are dropped, min/max are applied on blur, units show inside the field.
+- **Select** (`components/ui/Select.tsx`) replaces every native `<select>`: button + listbox, check on the selected option, optional hint and colour dot, keyboard (arrows, Home/End, Enter, Esc, type-ahead), flips up near the bottom of the screen.
+
+**Why**
+- Team feedback: straight lines looked wrong, abbreviations confuse non-technical buyers, "virgin" reads oddly, number fields were broken after backspace, native dropdowns looked primitive, and a match score number means little; a position does.
+
+**Files**
+- New: `lib/routing.ts`, `lib/ranking.ts`, `hooks/useRoute.ts`, `components/ui/Select.tsx`, `components/ui/NumberField.tsx`, `components/listings/RankBars.tsx`.
+- Changed: `lib/format.ts`, `RouteMap`, `MarketMap`, `ListingCard`, `FilterBar`, `LogisticsEstimate`, `EnquiryForm`, `CombinePlanner`, `useListings`, pages `Marketplace`, `ListingDetail`, `Matches`, `MyListings`, `SellNew`, `Auth`, `Impact`, `Home`, mock `scoring.ts`, `styles/app.css`.
+- Docs: `CLAUDE.md` (new components, unit and wording rules), `API_CONTRACT.md` (`matchScore` only orders).
+
+**Open items**
+- OSRM's demo server is fair use only, with no uptime promise. Before launch, use a hosted router (self-hosted OSRM, Valhalla, GraphHopper or Mapbox) or route on the backend.
+- The sandbox blocks OSRM, so the routed line was only checked as the fallback here. Check it in a local browser.
+- Overall positions are relative to what is on screen (filters change them). If the backend wants absolute ranks, add them to the contract.
+
+---
+
 ## 2026-10-03: "Data and guidance from" logo strip on the homepage
 
 **What**

@@ -2,13 +2,15 @@ import { useState, type FormEvent } from 'react';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { api, isMock } from '../../api/client';
 import type { Listing } from '../../api/types';
+import { NumberField } from '../ui/NumberField';
+import { Select } from '../ui/Select';
 import { useSite } from '../../auth/AuthProvider';
 
 export function EnquiryForm({ listing: l, monthly }: { listing: Listing; monthly: number }) {
   const isSupply = l.kind === 'supply';
   const site = useSite();
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
-  const [tonnes, setTonnes] = useState(Math.min(Math.round(monthly), 30));
+  const [tonnes, setTonnes] = useState<number | null>(Math.min(Math.round(monthly), 30));
   const [first, setFirst] = useState('November 2026');
   const [message, setMessage] = useState(
     isSupply ? `We need assay certificates with each load, delivered to ${site.suburb} ${site.state}.` : `We can supply from ${site.suburb} ${site.state} with assay certificates.`,
@@ -18,7 +20,7 @@ export function EnquiryForm({ listing: l, monthly }: { listing: Listing; monthly
     e.preventDefault();
     setStatus('sending');
     try {
-      await api.sendEnquiry(l.id, { tonnesPerMonth: tonnes, firstDelivery: first, message });
+      await api.sendEnquiry(l.id, { tonnesPerMonth: tonnes ?? 0, firstDelivery: first, message });
       setStatus('sent');
     } catch {
       setStatus('error');
@@ -43,14 +45,13 @@ export function EnquiryForm({ listing: l, monthly }: { listing: Listing; monthly
       <h2>{title}</h2>
       <form className="form" onSubmit={submit}>
         <div className="form-row">
-          <label className="field">Tonnes per month
-            <input id="enq-tonnes" type="number" min={1} value={tonnes} onChange={e => setTonnes(Number(e.target.value))} required />
+          <label className="field" htmlFor="enq-tonnes">Tonnes per month
+            <NumberField id="enq-tonnes" min={1} value={tonnes} onChange={setTonnes} suffix="tonnes" />
           </label>
-          <label className="field">First delivery
-            <select id="enq-first" value={first} onChange={e => setFirst(e.target.value)}>
-              <option>November 2026</option><option>December 2026</option><option>January 2027</option>
-            </select>
-          </label>
+          <div className="field"><label htmlFor="enq-first">First delivery</label>
+            <Select<string> id="enq-first" value={first} onChange={setFirst}
+              options={['November 2026', 'December 2026', 'January 2027'].map(v => ({ value: v, label: v }))} />
+          </div>
         </div>
         <label className="field">Note to {isSupply ? 'supplier' : 'buyer'}
           <textarea id="enq-message" value={message} onChange={e => setMessage(e.target.value)} />

@@ -9,7 +9,8 @@ import { MATERIALS } from '../../lib/materials';
 import { regionByCode } from '../../lib/regions';
 import { useSite } from '../../auth/AuthProvider';
 import { ROAD_FACTOR } from '../../lib/geo';
-import { aud, fmtInt, per } from '../../lib/format';
+import { aud, volume } from '../../lib/format';
+import type { Ranking } from '../../lib/ranking';
 import { useMarket } from '../../state/store';
 import { LAYERS } from './layers';
 import { LayerSwitcher } from './LayerSwitcher';
@@ -17,6 +18,7 @@ import { LayerSwitcher } from './LayerSwitcher';
 interface Props {
   listings: ListingView[];
   onOpen: (id: string) => void;
+  rankings?: Map<string, Ranking>;
 }
 
 const youIcon = L.divIcon({ className: '', html: '<div class="you-dot"></div>', iconSize: [18, 18], iconAnchor: [9, 9] });
@@ -55,7 +57,7 @@ function MapControls() {
   );
 }
 
-export function MarketMap({ listings, onOpen }: Props) {
+export function MarketMap({ listings, onOpen, rankings }: Props) {
   const HOME_SITE = useSite();
   const { layer, hoveredId, region, radiusKm, mode, set } = useMarket();
   const def = LAYERS[layer];
@@ -116,7 +118,8 @@ export function MarketMap({ listings, onOpen }: Props) {
             >
               <Tooltip className="tip" direction="top" offset={[0, -16]}>
                 <b>{l.company}</b>
-                {MATERIALS[l.material].label} · {fmtInt(l.tonnes)} t/{per(l.frequency)} · {aud(l.priceAud)}/t
+                {rankings?.get(l.id) && <span className="tip-rank">Ranked #{rankings.get(l.id)!.position} of {rankings.get(l.id)!.of}</span>}
+                {MATERIALS[l.material].label} · {volume(l.tonnes, l.frequency)} · {aud(l.priceAud)} per tonne
               </Tooltip>
             </Marker>
           );

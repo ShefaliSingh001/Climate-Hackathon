@@ -44,7 +44,7 @@ If the backend needs a different shape, change `types.ts` + this file in the sam
 | `priceAud` | asking price (supply) or the most the buyer pays (demand) |
 | `virginPriceAud` | indicative price of the virgin equivalent; `null` if not comparable |
 | `purity` | percent; `null` = assay on request |
-| `matchScore` | optional 0–100 fit for the requesting site; the card hides the badge when absent |
+| `matchScore` | optional 0–100 fit for the requesting site. The UI only uses it to **order** listings ("#3 of 22"); the number itself is never shown. Without it the UI ranks by its own factor weighting |
 | `gradeKey` | optional, backend only: `high` `medium` `short_use` (the `grade` field carries the label) |
 | `abn`, `website` | optional, backend only |
 | `locationApprox` | optional, backend only: `true` when `lat`/`lng` is the suburb centre, not the yard |
@@ -94,6 +94,8 @@ The UI currently filters by state, material, distance and search text **on the c
 All breakdown values are 0–100. The UI shows `material`, `distance`, `price` and `reliability` as bars, and `reasons` as one line of text.
 
 `grade` (`high` | `medium` | `short_use`, optional = any grade) and `certifications` (string array, optional) are also accepted. The backend ignores `minPurity` because the dataset grades material instead of assaying it.
+
+`score` and `breakdown` are used for ordering and for per-factor positions ("1st nearest"); the UI shows positions, never the raw numbers. Reasons may use "/t" or "N t"; the UI spells them out as "per tonne" / "tonnes".
 
 `MatchResult` from the backend also carries `eligible` (false when the matching model rules the supplier out; `reasons` says why and `score` is 0) and `inBestPlan` (part of the model's cheapest combined order).
 

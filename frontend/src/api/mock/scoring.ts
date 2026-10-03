@@ -25,8 +25,8 @@ export function scoreListing(listing: Listing, req: MatchRequest): MatchResult {
     material >= 95 ? `meets ${req.minPurity}% purity` : `purity ${listing.purity ?? 'n/a'}% is below spec`,
     `${fmtInt(distanceKm)} km by road`,
     withinBudget
-      ? `${aud(req.maxPriceAud - listing.priceAud)}/t under your ceiling`
-      : `${aud(listing.priceAud - req.maxPriceAud)}/t over your ceiling`,
+      ? `${aud(req.maxPriceAud - listing.priceAud)} per tonne under your limit`
+      : `${aud(listing.priceAud - req.maxPriceAud)} per tonne over your limit`,
   ];
   if (volume < 100) reasons.push(`covers ${volume}% of monthly volume`);
 
