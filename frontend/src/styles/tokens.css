@@ -1,0 +1,56 @@
+/* Design tokens. Every colour in the app comes from here; dark values are redefined below. */
+:root {
+  --forest: #0F3D2E;
+  --primary: #1F6B4F;
+  --accent: #2FA36B;
+  --accent-hover: #27925F;
+  --mint: #E6F2EA;
+  --bg: #F5F8F6;
+  --surface: #FFFFFF;
+  --surface-2: #F0F4F1;
+  --ink: #13201A;
+  --ink-2: #4A5A52;
+  --ink-3: #74837B;
+  --line: #DCE5DF;
+  --line-2: #C7D3CB;
+  --focus: #2FA36B;
+  --good: #1E7F4F;
+  --good-bg: #E3F3EA;
+  --warn: #9A6A12;
+  --warn-bg: #FBF0D9;
+  --danger: #B4413C;
+  --you: #1A73E8;
+  --shadow: 0 1px 2px rgba(15, 61, 46, .06), 0 4px 16px rgba(15, 61, 46, .06);
+  --shadow-lg: 0 8px 32px rgba(15, 61, 46, .16);
+  --topbar-bg: #0F3D2E;
+  --topbar-ink: #E9F3EC;
+  --topbar-muted: #9DBAA9;
+  --topbar-field: #1A4B3A;
+  --font-ui: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 8px;
+  --rail-w: 440px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --forest: #0B2A20; --primary: #4FBF86; --accent: #2FA36B; --accent-hover: #38B276; --mint: #173326;
+    --bg: #0E1512; --surface: #151E1A; --surface-2: #1B2621;
+    --ink: #E4EDE7; --ink-2: #A9B9B0; --ink-3: #7C8D84;
+    --line: #26332D; --line-2: #33433B; --focus: #4FBF86;
+    --good: #6FD39E; --good-bg: #183A29; --warn: #E2B45A; --warn-bg: #3A2E14; --danger: #E07A73;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.25); --shadow-lg: 0 8px 32px rgba(0,0,0,.5);
+    --topbar-bg: #0B1F18; --topbar-ink: #E4EDE7; --topbar-muted: #86A394; --topbar-field: #15302A;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --forest: #0B2A20; --primary: #4FBF86; --accent: #2FA36B; --accent-hover: #38B276; --mint: #173326;
+  --bg: #0E1512; --surface: #151E1A; --surface-2: #1B2621;
+  --ink: #E4EDE7; --ink-2: #A9B9B0; --ink-3: #7C8D84;
+  --line: #26332D; --line-2: #33433B; --focus: #4FBF86;
+  --good: #6FD39E; --good-bg: #183A29; --warn: #E2B45A; --warn-bg: #3A2E14; --danger: #E07A73;
+  --shadow: 0 1px 2px rgba(0,0,0,.3), 0 4px 16px rgba(0,0,0,.25); --shadow-lg: 0 8px 32px rgba(0,0,0,.5);
+  --topbar-bg: #0B1F18; --topbar-ink: #E4EDE7; --topbar-muted: #86A394; --topbar-field: #15302A;
+  color-scheme: dark;
+}
