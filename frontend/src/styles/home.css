@@ -45,6 +45,19 @@ html:has(.home) { scroll-behavior: smooth; }
 .fact b { font: 500 28px var(--font-data); color: #fff; letter-spacing: -0.02em; }
 .fact span { font-size: 13.5px; color: var(--on-dark-2); }
 
+/* partner logo strip */
+.partners { background: var(--surface); border-bottom: 1px solid var(--line); padding-block: 28px 18px; display: grid; gap: 16px; }
+.partners-head { text-align: center; }
+.marquee { overflow: hidden; -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+.marquee-track { display: flex; width: max-content; animation: marquee 40s linear infinite; }
+.marquee:hover .marquee-track { animation-play-state: paused; }
+@keyframes marquee { to { transform: translateX(-25%); } }
+.partner-row { display: flex; gap: 56px; padding: 0 28px; margin: 0; list-style: none; }
+.partner { display: grid; justify-items: center; gap: 8px; }
+.partner img { height: 56px; width: auto; border-radius: 8px; box-shadow: 0 0 0 1px var(--line); }
+.partner span { font-size: 12px; color: var(--ink-3); letter-spacing: .02em; }
+.partners-note { margin: 0 auto; text-align: center; font-size: 12px; color: var(--ink-3); }
+
 /* photos */
 .home .photo { position: relative; overflow: hidden; background: var(--surface-2); max-width: 100%; }
 .home .photo img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .8s cubic-bezier(.2,.7,.2,1); }
@@ -140,6 +153,8 @@ html:has(.home) { scroll-behavior: smooth; }
   .impact-grid { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 720px) {
+  .partner img { height: 44px; }
+  .partner-row { gap: 36px; }
   .home .wrap { padding-inline: 16px; }
   .home-nav .nav-inner { grid-template-columns: 1fr auto; height: auto; padding-block: 14px; row-gap: 12px; }
   .pill-links { grid-column: 1 / -1; grid-row: 2; justify-self: center; overflow-x: auto; max-width: 100%; gap: 0; }
@@ -156,4 +171,8 @@ html:has(.home) { scroll-behavior: smooth; }
   html:has(.home) { scroll-behavior: auto; }
   .home *, .home *::before, .home *::after { animation: none !important; transition: none !important; }
   .reveal.pending { transform: none; }
+  .marquee { -webkit-mask-image: none; mask-image: none; }
+  .marquee-track { width: auto; justify-content: center; }
+  .marquee-track .partner-row[aria-hidden] { display: none; }
+  .partner-row { flex-wrap: wrap; justify-content: center; row-gap: 20px; }
 }

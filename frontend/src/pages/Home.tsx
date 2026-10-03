@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { DotField } from '../components/brand/DotField';
 import { Logo } from '../components/brand/Logo';
 import { ACT_PATH, HOME_XY, NSW_PATH, PINS } from '../components/home/nswMap';
+import { PartnerStrip } from '../components/home/PartnerStrip';
 import { MATERIALS } from '../lib/materials';
 import type { MaterialKey } from '../api/types';
 import '../styles/home.css';
@@ -128,6 +129,8 @@ export function Home() {
           </div>
         </div>
       </section>
+
+      <PartnerStrip />
 
       <section className="band" id="problem">
         <div className="wrap problem-grid">
