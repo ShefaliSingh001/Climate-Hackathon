@@ -1,0 +1,8 @@
+# Runtime dependencies of the backend on Vercel (entrypoint: app.py). Local development and tests use
+# backend/requirements.txt, which adds the spreadsheet loader and test tools.
+fastapi>=0.115,<1
+pydantic>=2.9,<3
+psycopg[binary]>=3.2,<4
+# matching model (API/scrap_model_api.py)
+numpy>=1.26,<3
+scipy>=1.11,<2

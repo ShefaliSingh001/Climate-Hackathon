@@ -139,6 +139,42 @@ create index if not exists manufacturers_material_grade_idx on manufacturers (re
 create index if not exists manufacturers_abn_idx on manufacturers (abn);
 
 -- ---------------------------------------------------------------------
+-- Accounts (logins) and sessions
+--
+-- One account per email. A seller's account links to the producers row it
+-- registered with, a buyer's to its manufacturers row. Passwords are stored
+-- only as PBKDF2-SHA256 hashes ('pbkdf2_sha256$<iterations>$<salt>$<hash>').
+-- ---------------------------------------------------------------------
+
+create table if not exists accounts (
+  id                integer primary key,
+  email             text not null unique check (email = lower(email) and email like '%_@_%'),
+  password_hash     text not null,
+  name              text not null,
+  company           text not null,
+  abn               text not null check (length(abn) = 11 and abn not glob '*[^0-9]*'),
+  role              text not null check (role in ('buyer', 'seller')),
+  locality          text not null,
+  state             text not null check (state in ('NSW','VIC','QLD','SA','WA','TAS','ACT','NT')),
+  lat               real not null check (lat between -90 and 90),
+  lng               real not null check (lng between -180 and 180),
+  producer_id       integer references producers (id) on delete set null,
+  manufacturer_id   integer references manufacturers (id) on delete set null,
+  is_demo           integer not null default 0 check (is_demo in (0, 1)),
+  created_at        text not null default (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+
+-- Login sessions. Only a SHA-256 hash of the bearer token is stored.
+create table if not exists sessions (
+  token_hash  text primary key,
+  account_id  integer not null references accounts (id) on delete cascade,
+  created_at  text not null default (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+  expires_at  text not null
+);
+
+create index if not exists sessions_account_idx on sessions (account_id);
+
+-- ---------------------------------------------------------------------
 -- Enquiries (quote requests sent from a listing page or a combined order)
 -- ---------------------------------------------------------------------
 
@@ -149,6 +185,7 @@ create table if not exists enquiries (
   tonnes_per_month  real not null check (tonnes_per_month > 0),
   first_delivery    text not null,
   message           text not null default '',
+  account_id        integer references accounts (id) on delete set null, -- who sent it
   created_at        text not null default (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
 
   check ((producer_id is null) <> (manufacturer_id is null)) -- exactly one listing

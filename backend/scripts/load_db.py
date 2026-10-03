@@ -144,10 +144,14 @@ def manufacturer(r: dict, sources: dict[str, dict]) -> dict:
 
 def upgrade(db: sqlite3.Connection) -> None:
     """Add columns introduced after a database was first created (schema.sql only creates missing tables)."""
-    for table in ("producers", "manufacturers"):
+    for table, column, ddl in (
+        ("producers", "geo_source", "text check (geo_source in ('npi', 'locality', 'user'))"),
+        ("manufacturers", "geo_source", "text check (geo_source in ('npi', 'locality', 'user'))"),
+        ("enquiries", "account_id", "integer references accounts (id) on delete set null"),
+    ):
         cols = {row[1] for row in db.execute(f"pragma table_info({table})")}
-        if "geo_source" not in cols:
-            db.execute(f"alter table {table} add column geo_source text check (geo_source in ('npi', 'locality', 'user'))")
+        if column not in cols:
+            db.execute(f"alter table {table} add column {column} {ddl}")
 
 
 def insert(db: sqlite3.Connection, table: str, rows: list[dict]) -> None:

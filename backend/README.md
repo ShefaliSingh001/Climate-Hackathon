@@ -1,7 +1,11 @@
-# CircuLink backend
+# ResourceX backend
 
-SQLite database plus a FastAPI server that serves `frontend/API_CONTRACT.md`. Matching uses the tender matching model
-in `API/scrap_model_api.py`.
+FastAPI server that serves `frontend/API_CONTRACT.md` plus accounts (`/auth/*`, see [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md)). Matching uses the tender
+matching model in `API/scrap_model_api.py`.
+
+**Database:** on Vercel it uses **Neon Postgres** (whenever `DATABASE_URL` is set); locally it uses the committed
+**SQLite** file `backend/db/circulink.db`. Both engines have the same tables. To put it online, see
+[`DEPLOY.md`](DEPLOY.md).
 
 ## Run it
 
@@ -13,14 +17,21 @@ uvicorn backend.app.main:app --reload --port 8000     # API docs at http://local
 ```
 
 Then point the frontend at it: in `frontend/.env.local` set `VITE_API_URL=http://localhost:8000` and run
-`npm run dev` in `frontend/`. Tests: `pytest backend/tests` (they run against a temporary copy of the database).
+`npm run dev` in `frontend/`. To work against Neon locally instead of SQLite, also set `DATABASE_URL`.
+
+Tests: `pytest backend/tests`. Every test runs twice: on a temporary copy of the SQLite file, and on an empty
+embedded Postgres (`pgserver`) that seeds itself the way Neon does on first deploy.
 
 | Path | What it does |
 | --- | --- |
 | `app/main.py` | endpoints, request validation, `{ "error": ... }` responses, CORS (`CORS_ORIGINS`, default `http://localhost:5173`) |
 | `app/listings.py` | database rows → `Listing` (producers → `p<id>` supply, manufacturers → `m<id>` demand) |
 | `app/matching.py` | adapter to the matching model: builds its tender and producers, maps its plans back |
-| `app/db.py` | SQLite connection (`CIRCULINK_DB` overrides the path; foreign keys on) |
+| `app/db.py` | database adapter: Postgres when `DATABASE_URL` is set, else SQLite (`CIRCULINK_DB` overrides the path). Applies the schema on first connect and seeds an empty Postgres from the SQLite file |
+| `app/auth.py` | passwords (PBKDF2-SHA256), sessions (bearer tokens, only their hash stored) |
+| `db/schema.sql`, `db/schema.postgres.sql` | the same tables for each engine; keep them in step |
+| `scripts/sync_postgres.py` | push updated spreadsheet data to Neon (users' rows are kept) |
+| `../app.py`, `../requirements.txt` | Vercel entrypoint and runtime dependencies |
 
 ## Matching
 
@@ -39,23 +50,45 @@ Then point the frontend at it: in `frontend/.env.local` set `VITE_API_URL=http:/
     certifications) 15%, volume 10%.
   - Ineligible producers score 0 and show the model's reason.
   - `inBestPlan` marks producers in the model's cheapest combination.
-- **Card scores** (`matchScore` on `GET /listings`): the same score with no specific requirement.
+- **Card scores** (`matchScore` on `GET /listings`), personal when signed in:
+  - **Buyer with a registered requirement:** supply is scored by the model against that requirement (material,
+    grade, tonnes, budget, timeframe). Ineligible suppliers drop to 40% of their baseline; other materials to 50%.
+  - **Seller:** each buyer request (tender) is checked with the model's producer mode, with the seller's own
+    listing fixed as the anchor. "Can you plus partners fill it within budget?" scores higher than "you qualify, but
+    no complete order is possible". Requests the seller doesn't qualify for (grade, dates) drop to 40%, and other
+    materials to 50%.
+  - **Anyone else:** distance, price, reliability and volume, with no specific requirement.
 
-## Registration
-
-Signing up on the website saves the business through `POST /listings`. A seller becomes a `producers` row and a buyer a
-`manufacturers` row, with `is_synthetic = 0` and `geo_source = 'user'`, so re-running the loader keeps them. New
-producers are matched straight away. Logins themselves are still browser-only (`frontend/AUTH.md`), so the API trusts
-whatever it is sent. Running the app locally therefore changes `backend/db/circulink.db`; don't commit test sign-ups.
+Every producer and manufacturer in the database takes part, including ones that registered a minute ago.
 
 Not modelled: transport cost (the UI estimates freight separately), tax, and reserving stock across several
 tenders. "Any grade" passes every producer to the model with the same grade, so the grade check is skipped.
 
-## Database
+## Accounts
+
+`POST /auth/signup` creates, in one transaction:
+- the business: a `producers` row for a seller, or a `manufacturers` row for a buyer, with `is_synthetic = 0` and
+  `geo_source = 'user'`;
+- its login: an `accounts` row, with the password hashed.
+
+It returns a session token. Logins work from any device: `POST /auth/login`. With the token, `POST /listings`
+takes the business name, ABN and side from the account, and quote requests record who sent them. Without a token
+both still work as before (the body must name the business). That's what the current website does until it adopts
+`/auth/*`; see [`FRONTEND_HANDOFF.md`](FRONTEND_HANDOFF.md) for the endpoints and the frontend changes.
+
+| Table | One row is |
+| --- | --- |
+| `accounts` | a login: email (unique, lower-case), password hash, name, company, ABN, role (`buyer`/`seller`), site, and the `producer_id` or `manufacturer_id` it registered with |
+| `sessions` | a logged-in device: SHA-256 of the token, account, expiry (30 days) |
+
+Running the app locally writes to `backend/db/circulink.db`; don't commit test sign-ups.
+
+## Database files
 
 The database is committed as `backend/db/circulink.db`, already loaded, so you can open it straight away. The
 commands above rebuild it from `backend/db/schema.sql` and the two spreadsheets in the repo root; run them after the
-spreadsheets or schema change, then commit the updated `.db`. No account, server or keys needed.
+spreadsheets or schema change, then commit the updated `.db`. No account, server or keys needed. Neon is seeded
+from this file on first deploy; after that, push changes with `scripts/sync_postgres.py`.
 
 Open it with any SQLite tool, e.g. `sqlite3 backend/db/circulink.db` or [DB Browser for SQLite](https://sqlitebrowser.org/).
 

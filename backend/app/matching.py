@@ -182,3 +182,106 @@ def plan_order(supply: list[dict], req: dict) -> dict:
         "notice": notice,
         "grade": GRADE_LABELS.get(req.get("grade") or "", "Any grade"),
     }
+
+
+# ---------------------------------------------------------------------------------------------
+# Personal scores for signed-in accounts (matchScore on GET /listings)
+# ---------------------------------------------------------------------------------------------
+#
+# Every producer and manufacturer in the database takes part, including ones that registered through the app.
+# Listings of a material the account doesn't trade keep half their baseline score, so the cards that matter to
+# this account sort first.
+
+OFF_MATERIAL = 0.5
+INELIGIBLE = 0.4
+
+
+def _medians(listings: list[dict]) -> dict[str, float]:
+    return {m: statistics.median(l["priceAud"] for l in listings if l["material"] == m)
+            for m in {l["material"] for l in listings}}
+
+
+def baseline_scores(listings: list[dict], site: dict) -> dict[str, int]:
+    medians = _medians(listings)
+    return {l["id"]: baseline_score(l, site, medians[l["material"]]) for l in listings}
+
+
+def buyer_scores(supply: list[dict], requirement: dict, site: dict) -> dict[str, int]:
+    """Supply cards for a buyer, scored by the model against the buyer's own registered requirement (tender)."""
+    base = baseline_scores(supply, site)
+    req = {
+        "material": requirement["material"], "grade": requirement.get("gradeKey"),
+        "tonnesPerMonth": requirement["tonnes"], "maxPriceAud": requirement["priceAud"], "site": site,
+        "windowStart": requirement.get("availableFrom"), "windowEnd": requirement.get("availableTo"),
+    }
+    ranked = {r["listing"]["id"]: r for r in ranked_matches(supply, req)}
+    scores = {}
+    for l in supply:
+        r = ranked.get(l["id"])
+        if r is None:
+            scores[l["id"]] = round(base[l["id"]] * OFF_MATERIAL)
+        else:
+            scores[l["id"]] = r["score"] if r["eligible"] else round(base[l["id"]] * INELIGIBLE)
+    return scores
+
+
+def _overlaps(a_from, a_to, b_from, b_to) -> bool:
+    far_past, far_future = "2000-01-01", "2100-12-31"
+    return max(a_from or far_past, b_from or far_past) <= min(a_to or far_future, b_to or far_future)
+
+
+def tender_fit(supply: list[dict], tender: dict, anchor: dict) -> dict:
+    """Can this seller (anchor producer) take part in this buyer's tender? Uses the model's producer mode.
+
+    The model fixes the anchor's contribution (as much as it has, up to the tender's quantity) and looks for
+    partners among all other producers to fill the rest within the buyer's budget.
+    """
+    reasons = []
+    if anchor["material"] != tender["material"]:
+        reasons.append("different material")
+    if anchor.get("gradeKey") != tender.get("gradeKey"):
+        reasons.append("grade mismatch")
+    if not _overlaps(anchor.get("availableFrom"), anchor.get("availableTo"), tender.get("availableFrom"), tender.get("availableTo")):
+        reasons.append("not available in the purchase window")
+    if reasons:
+        return {"eligible": False, "feasible": False, "reasons": reasons}
+    producers = [to_model_producer(l, "exact") for l in supply if l["material"] == tender["material"]]
+    producers = sorted(producers, key=lambda p: (p["id"] != anchor["id"], p["price_aud_per_tonne"]))[:MAX_PRODUCERS]
+    result = solve_tender({
+        "tender": {
+            "id": tender["id"], "material": tender["material"], "grade": tender["gradeKey"],
+            "quantity_tonnes": round(tender["tonnes"], 3), "budget_aud": round(tender["budgetAud"], 2),
+            "window_start": tender.get("availableFrom") or tender.get("orderBy"),
+            "window_end": tender.get("availableTo") or tender.get("deliverBy"),
+            "required_certifications": [],
+        },
+        "producers": producers, "anchor_producer_id": anchor["id"], "top_k": 1,
+    })
+    if result["status"] == "feasible":
+        plan = result["recommendations"][0]
+        share = next(a["quantity_tonnes"] for a in plan["allocations"] if a["is_anchor"])
+        return {"eligible": True, "feasible": True, "share": share / tender["tonnes"], "partners": len(plan["partner_ids"])}
+    return {"eligible": True, "feasible": False, "reasons": [result.get("reason", "no feasible order")]}
+
+
+def seller_scores(supply: list[dict], demand: list[dict], own: list[dict], site: dict) -> dict[str, int]:
+    """Buyer-request cards for a seller, scored by whether the seller's own listings can help fill each tender."""
+    base = baseline_scores(demand, site)
+    scores = {}
+    for tender in demand:
+        mine = [l for l in own if l["material"] == tender["material"]]
+        if not mine:
+            scores[tender["id"]] = round(base[tender["id"]] * OFF_MATERIAL)
+            continue
+        best = None
+        for anchor in mine:
+            fit = tender_fit(supply, tender, anchor)
+            if not fit["eligible"]:
+                continue
+            km = road_km(site["lat"], site["lng"], tender["lat"], tender["lng"])
+            headroom = _clamp(50 + (tender["priceAud"] - anchor["priceAud"]) / max(tender["priceAud"], 1) * 250)
+            fit_score = 70 + 30 * fit["share"] if fit["feasible"] else 45
+            score = round(fit_score * 0.5 + _clamp(100 - km / 10) * 0.25 + headroom * 0.25)
+            best = score if best is None else max(best, score)
+        scores[tender["id"]] = best if best is not None else round(base[tender["id"]] * INELIGIBLE)
+    return scores
