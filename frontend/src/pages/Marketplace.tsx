@@ -4,12 +4,14 @@ import { FilterBar } from '../components/listings/FilterBar';
 import { ListingCard } from '../components/listings/ListingCard';
 import { MarketMap } from '../components/map/MarketMap';
 import { useListings } from '../hooks/useListings';
-import { HOME_SITE, regionByCode } from '../lib/regions';
+import { regionByCode } from '../lib/regions';
+import { useSite } from '../auth/AuthProvider';
 import { useMarket } from '../state/store';
 
 export function Marketplace() {
   const navigate = useNavigate();
   const { mode, region, hoveredId, set } = useMarket();
+  const HOME_SITE = useSite();
   const { all, inRegion, visible, loading, error } = useListings();
   const open = (id: string) => { set({ hoveredId: null }); navigate(`/listing/${id}`); };
 

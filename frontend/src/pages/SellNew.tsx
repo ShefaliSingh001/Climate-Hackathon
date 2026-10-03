@@ -6,13 +6,14 @@ import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { api, isMock } from '../api/client';
 import type { Frequency, Listing, MaterialKey, NewListing, StateCode } from '../api/types';
 import { GRADES, MATERIALS, MATERIAL_KEYS } from '../lib/materials';
-import { HOME_SITE, REGIONS } from '../lib/regions';
+import { REGIONS } from '../lib/regions';
+import { useAuth } from '../auth/AuthProvider';
 import { LAYERS } from '../components/map/layers';
 
 const CERTS = ['EPA licence', 'ISO 14001', 'ISO 9001', 'APCO member', 'NTCRS approved', 'drumMUSTER collector'];
 const STATES = REGIONS.filter(r => r.code !== 'AU').map(r => r.code as StateCode);
 
-const pickIcon = L.divIcon({ className: '', html: '<div class="pin" style="--c:#1F6B4F">You</div>', iconSize: [30, 30], iconAnchor: [15, 15] });
+const pickIcon = L.divIcon({ className: '', html: '<div class="pin" style="--c:#4F7A26">You</div>', iconSize: [30, 30], iconAnchor: [15, 15] });
 
 function ClickToPlace({ onPick }: { onPick: (lat: number, lng: number) => void }) {
   useMapEvents({ click: e => onPick(e.latlng.lat, e.latlng.lng) });
@@ -22,9 +23,11 @@ function ClickToPlace({ onPick }: { onPick: (lat: number, lng: number) => void }
 type Errors = Partial<Record<'grade' | 'tonnes' | 'price' | 'suburb' | 'abn', string>>;
 
 export function SellNew() {
+  const { account } = useAuth();
+  const site = account!.site;
   const [form, setForm] = useState<NewListing>({
-    kind: 'supply', company: HOME_SITE.name, suburb: HOME_SITE.suburb, state: HOME_SITE.state,
-    lat: HOME_SITE.lat, lng: HOME_SITE.lng, material: isMock ? 'copper' : 'steel', grade: isMock ? '' : GRADES.high, form: '', tonnes: 10, abn: '',
+    kind: 'supply', company: account!.company, suburb: site.suburb, state: site.state,
+    lat: site.lat, lng: site.lng, material: isMock ? 'copper' : 'steel', grade: isMock ? '' : GRADES.high, form: '', tonnes: 10, abn: account!.abn,
     frequency: 'Monthly', priceAud: 0, virginPriceAud: null, purity: null, certifications: ['EPA licence'],
   });
   const [errors, setErrors] = useState<Errors>({});
@@ -66,9 +69,10 @@ export function SellNew() {
           <CheckCircle2 size={16} />
           <div>
             <b>{MATERIALS[created.material].label} listing published.</b><br />
-            It shows as unverified until we check your EPA licence. {isMock && 'Demo mode: it lives in this browser tab only.'}
+            It shows as unverified until we check your EPA licence. {isMock && 'Demo mode: it is saved in this browser only.'}
             <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
-              <Link className="btn btn-primary" to={`/listing/${created.id}`}>View on map</Link>
+              <Link className="btn btn-primary" to="/my-listings">Go to my listings</Link>
+              <Link className="btn btn-ghost" to={`/listing/${created.id}`}>View listing</Link>
               <button className="btn btn-ghost" onClick={() => setCreated(null)}>List another</button>
             </div>
           </div>

@@ -20,7 +20,8 @@
       "ISO 14001"
     ],
     "verified": true,
-    "monthsOnPlatform": 14
+    "monthsOnPlatform": 14,
+    "abn": "99000000002"
   },
   {
     "id": "s02",
@@ -32,7 +33,7 @@
     "lng": 150.94,
     "material": "copper",
     "grade": "Cable granules",
-    "form": "Granules 3–6 mm",
+    "form": "Granules 3\u20136 mm",
     "tonnes": 18,
     "frequency": "Fortnightly",
     "priceAud": 12700,

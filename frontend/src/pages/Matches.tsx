@@ -5,7 +5,7 @@ import { api, isMock } from '../api/client';
 import type { GradeKey, MaterialKey } from '../api/types';
 import { useAsync } from '../hooks/useAsync';
 import { GRADES, MATERIALS, MATERIAL_KEYS } from '../lib/materials';
-import { HOME_SITE } from '../lib/regions';
+import { useSite } from '../auth/AuthProvider';
 import { aud, fmtInt, per } from '../lib/format';
 import { CombinePlanner } from '../components/sourcing/CombinePlanner';
 
@@ -41,6 +41,7 @@ type Tab = 'ranked' | 'combine';
 
 export function Matches() {
   const [params, setParams] = useSearchParams();
+  const HOME_SITE = useSite();
   const tab: Tab = params.get('tab') === 'combine' ? 'combine' : 'ranked';
   const initialMaterial = (OFFERED as string[]).includes(params.get('material') ?? '') ? (params.get('material') as MaterialKey) : OFFERED[0];
 
@@ -63,7 +64,7 @@ export function Matches() {
       <div className="page-inner">
         <div className="page-head">
           <h1>Source recycled material</h1>
-          <p>Describe what your plant needs each month. Rank single suppliers, or let CircuLink split the order across several partners to reach your volume within budget.</p>
+          <p>Describe what your plant needs each month. Rank single suppliers, or let ResourceX split the order across several partners to reach your volume within budget.</p>
         </div>
 
         <div className="matches-grid">

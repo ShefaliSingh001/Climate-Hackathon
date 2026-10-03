@@ -1,4 +1,4 @@
-# CircuLink
+# ResourceX
 
 A marketplace that matches buyers and sellers of recycled materials (copper, aluminium, steel, plastics, paper, glass, e-scrap) across Australia, starting with NSW.
 

@@ -1,6 +1,6 @@
-# CircuLink frontend
+# ResourceX frontend
 
-React + Vite + TypeScript UI for the CircuLink recycled-materials marketplace (Australia, NSW first).
+React + Vite + TypeScript UI for the ResourceX recycled-materials marketplace (Australia, NSW first).
 
 ## Run it
 
@@ -23,11 +23,18 @@ Other scripts: `npm run typecheck`, `npm run build`, `npm run preview`.
 
 | Route | What it does |
 | --- | --- |
-| `/` | Marketplace (compact list; click a row for the full page): state picker (NSW default), material chips, sort, distance, list + map with Map / Satellite / Terrain / Dark views |
+| `/` | Public homepage: what ResourceX does, for buyers and sellers. Log in / Get started, or Go to dashboard when signed in |
+| `/login`, `/signup` | Log in (with one-click demo buyer / seller) and create an account as a buyer or seller |
+| `/marketplace` | Map + compact list. Buyers see supply, sellers see buyer requests. State picker (NSW default), material chips, sort, distance, Map / Satellite / Terrain / Dark views |
 | `/listing/:id` | Full supplier page: key figures, logistics cost estimate and landed cost, material spec, route map, licences, quote form |
-| `/matches` | Sourcing: enter demand and budget, then either rank single suppliers or combine several partners to meet volume within budget (`?tab=combine&material=steel`) |
-| `/sell/new` | Seller lists recovered material, picks the yard location on a map |
+| `/sourcing` (buyers) | Sourcing: enter demand and budget, then either rank single suppliers or combine several partners to meet volume within budget (`?tab=combine&material=steel`) |
+| `/my-listings` (sellers) | The seller's own listings (matched on ABN) |
+| `/sell/new` (sellers) | List recovered material, prefilled from the account, yard location on a map |
 | `/impact` | KPIs and the global circularity rate against the COP31 15% goal |
+
+## Demo accounts
+
+On `/login`, click **Demo buyer** (Westlink Cable Co., Wetherill Park) or **Demo seller** (Hunter Copper Reclaim, Kooragang). See `AUTH.md`.
 
 ## Where things live
 

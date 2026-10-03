@@ -1,4 +1,4 @@
-# CircuLink
+# ResourceX
 
 Recycled-materials marketplace for Australia (NSW first). COP31 hackathon, Green Industrialisation priority.
 

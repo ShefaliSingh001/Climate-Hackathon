@@ -5,6 +5,52 @@ Anyone (or any Claude session) picking up the frontend should read this before s
 
 ---
 
+## 2026-10-03: ResourceX brand, login, buyer/seller views, homepage
+
+**What**
+- **Rebrand:** CircuLink is now **ResourceX**, using the team's logo.
+  - The logo is in `public/brand/`:
+    - `logo-full.webp`: the original;
+    - `logo-mark.png`: the infinity mark keyed to a transparent background;
+    - `favicon.png`.
+  - `components/brand/Logo.tsx` shows the mark with a live-text wordmark ("ReSource" plus a lime "X", in Montserrat 700).
+  - The palette now follows the logo: brand green `#10251A`, lime accent `#A8CF6A` with dark text on buttons, and `#4F7A26` for accent text on light backgrounds. The tokens are in `styles/tokens.css`; material colours are unchanged.
+- **Login** (`src/auth/`, `pages/Auth.tsx`):
+  - `/login` takes email and password and has one-click demo buyer and demo seller accounts.
+  - `/signup` has a role chooser (buyer or seller), business name, ABN, name, site (from `lib/places.ts`), email and password.
+  - Accounts are browser-only for now. `AUTH.md` explains how to move them to the backend.
+- **Role-based app:**
+  - **Buyers** see Supply map · Sourcing · Impact.
+  - **Sellers** see Buyer requests · My listings · Impact.
+  - The Buy/Sell toggle and the top "List material" button are gone.
+  - `RequireAuth` guards the routes, and the listing page refuses the other side's listings.
+  - New `/my-listings` page shows the seller's listings, matched on ABN, with a "List material" button.
+  - `/sell/new` is prefilled from the account, including its ABN.
+- **Site per account:** `useSite()` replaces the `HOME_SITE` constant in the map, listings, sourcing, the listing page and the enquiry text. `HOME_SITE` remains only as the demo buyer's site and as a fallback.
+- **Homepage** (`/`, `pages/Home.tsx`, `styles/home.css`):
+  - Centred nav; "Log in / Get started", or "Go to dashboard" when signed in.
+  - The hero has no photo: brand green with an animated dot-wave field (`components/brand/DotField.tsx`, a canvas that pauses offscreen and stays still under reduced motion).
+  - Sections: the problem (with sources), how it works, the platform (an animated NSW map of sample suppliers), who it's for, impact, and a closing call to action. Section photos are labelled placeholders until stock photos can be downloaded.
+- **Routes:**
+  - Public: `/`, `/login`, `/signup`.
+  - Signed in: `/marketplace`, `/listing/:id`, `/impact`, `/sourcing` (buyer only), `/my-listings` and `/sell/new` (seller only).
+  - `/matches` redirects to `/sourcing`.
+- **Demo-mode listings** created by sellers are kept in `localStorage`, so they survive a reload.
+
+**Why**
+- The team supplied the ResourceX logo and asked for a public homepage, a login, and separate buyer and seller experiences.
+
+**Backend hand-off**
+- No API changes. "My listings" uses the `abn` field that `GET /listings` already returns.
+- `AUTH.md` proposes `/auth/*` endpoints and an `accounts` table for real login.
+
+**Open items**
+- Real auth on the backend (see `AUTH.md`). Demo passwords use SHA-256 in `localStorage` and are not secure.
+- Swap the homepage photo placeholders for licensed stock photos once the environment allows `unsplash.com` and `images.unsplash.com`.
+- Sellers can't edit or pause listings yet; that needs `PATCH /listings/{id}` on the backend.
+
+---
+
 ## 2026-10-03: Live backend and model-based matching
 
 **What**

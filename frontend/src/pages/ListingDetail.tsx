@@ -4,7 +4,7 @@ import { ArrowLeft, BadgeCheck, Layers3, Leaf, MapPin } from 'lucide-react';
 import { api } from '../api/client';
 import { useAsync } from '../hooks/useAsync';
 import { MATERIALS } from '../lib/materials';
-import { HOME_SITE } from '../lib/regions';
+import { useAuth, useSite } from '../auth/AuthProvider';
 import { roadKm } from '../lib/geo';
 import { aud, belowVirgin, fmtInt, monthlyTonnes, per } from '../lib/format';
 import { RouteMap } from '../components/map/RouteMap';
@@ -13,6 +13,8 @@ import { EnquiryForm } from '../components/listings/EnquiryForm';
 
 export function ListingDetail() {
   const { id = '' } = useParams();
+  const { account } = useAuth();
+  const HOME_SITE = useSite();
   const { data: l, loading, error } = useAsync(() => api.getListing(id), [id]);
 
   if (loading && !l) {
@@ -21,8 +23,20 @@ export function ListingDetail() {
   if (error || !l) {
     return (
       <main className="page"><div className="page-inner">
-        <Link to="/" className="back"><ArrowLeft size={16} />Back to marketplace</Link>
+        <Link to="/marketplace" className="back"><ArrowLeft size={16} />Back to the map</Link>
         <div className="panel empty">This listing doesn't exist or was removed.</div>
+      </div></main>
+    );
+  }
+
+  // Buyers see supply; sellers see buyer requests and their own listings.
+  const own = !!account && l.abn === account.abn;
+  const allowed = account?.role === 'buyer' ? l.kind === 'supply' : l.kind === 'demand' || own;
+  if (!allowed) {
+    return (
+      <main className="page"><div className="page-inner">
+        <Link to="/marketplace" className="back"><ArrowLeft size={16} />Back to the map</Link>
+        <div className="panel empty">This listing isn't available for {account?.role === 'buyer' ? 'buyer' : 'seller'} accounts.</div>
       </div></main>
     );
   }
@@ -37,7 +51,7 @@ export function ListingDetail() {
   return (
     <main className="page">
       <div className="page-inner">
-        <Link to="/" className="back"><ArrowLeft size={16} />Back to marketplace</Link>
+        <Link to={own ? '/my-listings' : '/marketplace'} className="back"><ArrowLeft size={16} />{own ? 'Back to my listings' : 'Back to the map'}</Link>
 
         <header className="detail-head">
           <div className={`code large${isSupply ? '' : ' square'}`} style={{ '--c': m.color } as CSSProperties}>{m.code}</div>
@@ -47,9 +61,9 @@ export function ListingDetail() {
             <p className="detail-sub"><MapPin size={14} />{l.suburb}, {l.state} · {fmtInt(distanceKm)} km by road from {HOME_SITE.suburb}</p>
           </div>
           <div className="detail-actions">
-            <a className="btn btn-primary" href="#enquiry">{isSupply ? 'Request a quote' : 'Make an offer'}</a>
-            {isSupply && (
-              <Link className="btn btn-ghost" to={`/matches?tab=combine&material=${l.material}`}><Layers3 size={16} />Combine with other suppliers</Link>
+            {own ? <span className="tag good">Your listing</span> : <a className="btn btn-primary" href="#enquiry">{isSupply ? 'Request a quote' : 'Make an offer'}</a>}
+            {isSupply && !own && (
+              <Link className="btn btn-ghost" to={`/sourcing?tab=combine&material=${l.material}`}><Layers3 size={16} />Combine with other suppliers</Link>
             )}
           </div>
         </header>
@@ -116,7 +130,7 @@ export function ListingDetail() {
               <table className="spec">
                 <tbody>
                   <tr><th>Location</th><td>{l.suburb}, {l.state}</td></tr>
-                  <tr><th>Trading on CircuLink</th><td className="num">{l.monthsOnPlatform} months</td></tr>
+                  <tr><th>Trading on ResourceX</th><td className="num">{l.monthsOnPlatform} months</td></tr>
                   <tr><th>Status</th><td>{l.verified ? 'Verified site and licences' : 'Not yet verified'}</td></tr>
                 </tbody>
               </table>
@@ -126,7 +140,7 @@ export function ListingDetail() {
                 {l.certifications.map(c => <span key={c} className="tag">{c}</span>)}
               </div>
             </section>
-            <EnquiryForm listing={l} monthly={monthly} />
+            {!own && <EnquiryForm listing={l} monthly={monthly} />}
           </div>
         </div>
       </div>

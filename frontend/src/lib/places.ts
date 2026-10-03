@@ -1,0 +1,39 @@
+import type { Site, StateCode } from '../api/types';
+
+/** Industrial suburbs and regional centres offered at sign-up, so every account gets map coordinates. */
+export const PLACES: { suburb: string; state: StateCode; lat: number; lng: number }[] = [
+  { suburb: 'Wetherill Park', state: 'NSW', lat: -33.847, lng: 150.9 },
+  { suburb: 'Smithfield', state: 'NSW', lat: -33.85, lng: 150.94 },
+  { suburb: 'Moorebank', state: 'NSW', lat: -33.94, lng: 150.93 },
+  { suburb: 'Eastern Creek', state: 'NSW', lat: -33.8, lng: 150.85 },
+  { suburb: 'Erskine Park', state: 'NSW', lat: -33.81, lng: 150.79 },
+  { suburb: 'Penrith', state: 'NSW', lat: -33.75, lng: 150.69 },
+  { suburb: 'Silverwater', state: 'NSW', lat: -33.83, lng: 151.05 },
+  { suburb: 'Chullora', state: 'NSW', lat: -33.89, lng: 151.06 },
+  { suburb: 'Botany', state: 'NSW', lat: -33.96, lng: 151.2 },
+  { suburb: 'Campbelltown', state: 'NSW', lat: -34.07, lng: 150.82 },
+  { suburb: 'Kooragang', state: 'NSW', lat: -32.87, lng: 151.76 },
+  { suburb: 'Tomago', state: 'NSW', lat: -32.82, lng: 151.71 },
+  { suburb: 'Beresfield', state: 'NSW', lat: -32.8, lng: 151.65 },
+  { suburb: 'Port Kembla', state: 'NSW', lat: -34.47, lng: 150.89 },
+  { suburb: 'Unanderra', state: 'NSW', lat: -34.45, lng: 150.85 },
+  { suburb: 'Gosford', state: 'NSW', lat: -33.43, lng: 151.34 },
+  { suburb: 'Orange', state: 'NSW', lat: -33.28, lng: 149.1 },
+  { suburb: 'Bathurst', state: 'NSW', lat: -33.42, lng: 149.58 },
+  { suburb: 'Dubbo', state: 'NSW', lat: -32.25, lng: 148.6 },
+  { suburb: 'Tamworth', state: 'NSW', lat: -31.09, lng: 150.93 },
+  { suburb: 'Wagga Wagga', state: 'NSW', lat: -35.12, lng: 147.37 },
+  { suburb: 'Albury', state: 'NSW', lat: -36.08, lng: 146.92 },
+  { suburb: 'Coffs Harbour', state: 'NSW', lat: -30.3, lng: 153.11 },
+  { suburb: 'Hume', state: 'ACT', lat: -35.38, lng: 149.16 },
+  { suburb: 'Laverton North', state: 'VIC', lat: -37.83, lng: 144.77 },
+  { suburb: 'Dandenong South', state: 'VIC', lat: -38.02, lng: 145.21 },
+  { suburb: 'Pinkenba', state: 'QLD', lat: -27.43, lng: 153.11 },
+  { suburb: 'Wingfield', state: 'SA', lat: -34.84, lng: 138.57 },
+  { suburb: 'Kwinana Beach', state: 'WA', lat: -32.24, lng: 115.77 },
+  { suburb: 'Bell Bay', state: 'TAS', lat: -41.13, lng: 146.87 },
+  { suburb: 'Berrimah', state: 'NT', lat: -12.44, lng: 130.92 },
+];
+
+export const placeLabel = (p: { suburb: string; state: string }) => `${p.suburb}, ${p.state}`;
+export const toSite = (company: string, p: (typeof PLACES)[number]): Site => ({ name: company, ...p });

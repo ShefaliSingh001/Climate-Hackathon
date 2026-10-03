@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { api } from '../api/client';
 import type { Listing } from '../api/types';
 import { MATERIALS } from '../lib/materials';
-import { HOME_SITE } from '../lib/regions';
+import { useSite } from '../auth/AuthProvider';
 import { roadKm } from '../lib/geo';
 import { useMarket } from '../state/store';
 import { useAsync } from './useAsync';
@@ -14,11 +14,12 @@ export interface ListingView extends Listing {
 /** Listings for the current Buy/Sell mode, plus the filtered + sorted view the UI shows. */
 export function useListings() {
   const { mode, region, materials, query, sort, radiusKm, verifiedOnly } = useMarket();
-  const { data, loading, error } = useAsync(() => api.listListings(mode, HOME_SITE), [mode]);
+  const site = useSite();
+  const { data, loading, error } = useAsync(() => api.listListings(mode, site), [mode, site]);
 
   const all: ListingView[] = useMemo(
-    () => (data ?? []).map(l => ({ ...l, distanceKm: roadKm(HOME_SITE, l) })),
-    [data],
+    () => (data ?? []).map(l => ({ ...l, distanceKm: roadKm(site, l) })),
+    [data, site],
   );
 
   // Region scoping is applied before the material filter so chip counts reflect the chosen state.
