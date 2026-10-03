@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, type CSSProperties } from 'react';
 import L from 'leaflet';
 import { Circle, GeoJSON, MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet';
 import type { Feature, FeatureCollection } from 'geojson';
@@ -15,15 +15,12 @@ import { LayerSwitcher } from './LayerSwitcher';
 
 interface Props {
   listings: ListingView[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-  /** Rendered over the map, e.g. the listing drawer. */
-  children?: ReactNode;
+  onOpen: (id: string) => void;
 }
 
 const youIcon = L.divIcon({ className: '', html: '<div class="you-dot"></div>', iconSize: [18, 18], iconAnchor: [9, 9] });
 
-function pinIcon(l: ListingView, state: 'hover' | 'selected' | '') {
+function pinIcon(l: ListingView, state: 'hover' | '') {
   const m = MATERIALS[l.material];
   return L.divIcon({
     className: '',
@@ -56,23 +53,9 @@ function MapControls() {
   );
 }
 
-/** Pans so the selected pin is visible beside the drawer. */
-function FollowSelection({ listing }: { listing: ListingView | undefined }) {
-  const map = useMap();
-  useEffect(() => {
-    if (!listing) return;
-    const zoom = Math.max(map.getZoom(), 8);
-    const shift = window.innerWidth > 820 ? 210 : 0;
-    const p = map.project([listing.lat, listing.lng], zoom).add([shift, 0]);
-    map.flyTo(map.unproject(p, zoom), zoom, { duration: 0.5 });
-  }, [map, listing]);
-  return null;
-}
-
-export function MarketMap({ listings, selectedId, onSelect, children }: Props) {
+export function MarketMap({ listings, onOpen }: Props) {
   const { layer, hoveredId, region, radiusKm, mode, set } = useMarket();
   const def = LAYERS[layer];
-  const selected = listings.find(l => l.id === selectedId);
 
   const usedMaterials = useMemo(() => [...new Set(listings.map(l => l.material))], [listings]);
 
@@ -114,7 +97,7 @@ export function MarketMap({ listings, selectedId, onSelect, children }: Props) {
           <Tooltip className="tip" direction="top" offset={[0, -10]}><b>Your site</b>{HOME_SITE.name}, {HOME_SITE.suburb}</Tooltip>
         </Marker>
         {listings.map(l => {
-          const state = selectedId === l.id ? 'selected' : hoveredId === l.id ? 'hover' : '';
+          const state = hoveredId === l.id ? 'hover' : '';
           return (
             <Marker
               key={l.id}
@@ -123,7 +106,7 @@ export function MarketMap({ listings, selectedId, onSelect, children }: Props) {
               zIndexOffset={state ? 1000 : 0}
               title={l.company}
               eventHandlers={{
-                click: () => onSelect(l.id),
+                click: () => onOpen(l.id),
                 mouseover: () => set({ hoveredId: l.id }),
                 mouseout: () => set({ hoveredId: null }),
               }}
@@ -136,7 +119,6 @@ export function MarketMap({ listings, selectedId, onSelect, children }: Props) {
           );
         })}
         <MapControls />
-        <FollowSelection listing={selected} />
       </MapContainer>
 
       <div className="map-chrome map-top">
@@ -151,7 +133,6 @@ export function MarketMap({ listings, selectedId, onSelect, children }: Props) {
         )}
       </div>
       <LayerSwitcher />
-      {children}
     </section>
   );
 }

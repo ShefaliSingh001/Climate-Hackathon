@@ -23,9 +23,9 @@ Other scripts: `npm run typecheck`, `npm run build`, `npm run preview`.
 
 | Route | What it does |
 | --- | --- |
-| `/` | Marketplace: state picker (NSW default), material chips, sort, distance, list + map with Map / Satellite / Terrain / Dark views |
-| `/listing/:id` | Same view with the listing's detail drawer open (shareable link) |
-| `/matches` | Buyer enters a requirement and gets ranked suppliers with a score breakdown |
+| `/` | Marketplace (compact list; click a row for the full page): state picker (NSW default), material chips, sort, distance, list + map with Map / Satellite / Terrain / Dark views |
+| `/listing/:id` | Full supplier page: key figures, logistics cost estimate and landed cost, material spec, route map, licences, quote form |
+| `/matches` | Sourcing: enter demand and budget, then either rank single suppliers or combine several partners to meet volume within budget (`?tab=combine&material=steel`) |
 | `/sell/new` | Seller lists recovered material, picks the yard location on a map |
 | `/impact` | KPIs and the global circularity rate against the COP31 15% goal |
 

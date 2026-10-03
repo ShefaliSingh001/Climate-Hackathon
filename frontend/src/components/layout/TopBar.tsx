@@ -21,7 +21,7 @@ export function TopBar() {
       </Link>
       <nav className="nav" aria-label="Main">
         <NavLink to="/" end className={() => (onMarket ? 'active' : '')}>Marketplace</NavLink>
-        <NavLink to="/matches">AI matches</NavLink>
+        <NavLink to="/matches">Sourcing</NavLink>
         <NavLink to="/impact">Impact</NavLink>
       </nav>
       <label className="search">

@@ -5,6 +5,39 @@ Anyone (or any Claude session) picking up the frontend should read this before s
 
 ---
 
+## 2026-10-03: Compact list, full supplier page, freight estimate, combined orders
+
+**What**
+- **Compact list:** results rail cards now show only name, verified badge, volume, price, distance and match score. Clicking a card or a map pin opens the full listing page; the old slide-over drawer is gone.
+- **Listing page** (`/listing/:id`, `pages/ListingDetail.tsx`):
+  - Key figures, material spec and price against virgin.
+  - Estimated CO2e avoided.
+  - Route map from your site, business details and licences.
+  - Quote form, plus a "Combine with other suppliers" link.
+- **Logistics cost estimate** (`components/listings/LogisticsEstimate.tsx`, `lib/logistics.ts`):
+  - Inputs: tonnes per month, truck type (rigid, semi-trailer, B-double, or the cheapest), and whether the return leg is empty.
+  - Outputs: trips, freight per month and per tonne, landed cost per tonne compared with virgin, and freight emissions.
+  - All assumptions are listed on screen.
+- **Combine suppliers** (Sourcing page, "Combine suppliers" tab; `components/sourcing/CombinePlanner.tsx`, `lib/sourcing.ts`):
+  - The buyer enters demand (t/month) and budget (A$/month including freight). The planner splits the order across up to N partners, optimising for lowest landed cost, fewest partners or lowest freight emissions, with an optional verified-only filter.
+  - Shows volume and budget meters, average landed cost, budget left, CO2e avoided and freight emissions.
+  - The editable split table lets you change tonnes per partner, remove partners or add one, with totals updating live.
+  - A route map shows every partner, and "Request quotes from all partners" sends an enquiry to each.
+- Nav item "AI matches" is renamed "Sourcing". The page reads `?tab=combine&material=...`.
+- Emissions under 1 t display in kg (`co2e()` in `lib/format.ts`).
+
+**Why**
+- The team asked for a cleaner sidebar, a full page per supplier, freight costs, and a way to meet a demand and budget using several partners. That last point matches the backend's `manufacturers` table (`required_quantity_t` and `budget_aud`).
+
+**Backend hand-off**
+- The freight estimate and the order planner run in the browser for now. `API_CONTRACT.md` has a new section describing their inputs and outputs in case the backend takes them over.
+
+**Open items**
+- Freight rates (A$/km per truck, A$180 per trip) and 0.075 kg CO2e/t-km are indicative. Replace them with carrier quotes or published rates.
+- Greedy allocation is fine for tens of suppliers. Use a solver if the counts grow or minimum order sizes appear.
+
+---
+
 ## 2026-10-03: Fix blank map ("API KEY REQUIRED" tiles)
 
 **What**

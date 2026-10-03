@@ -12,3 +12,7 @@ export const monthlyTonnes = (tonnes: number, f: Frequency) => tonnes * PERIODS_
 /** Percent below the virgin benchmark, or null when there is no benchmark. */
 export const belowVirgin = (price: number, virgin: number | null) =>
   virgin ? Math.round((1 - price / virgin) * 100) : null;
+
+/** Emissions given in tonnes, shown in kg below one tonne. */
+export const co2e = (tonnes: number) =>
+  tonnes < 1 ? `${fmtInt(tonnes * 1000)} kg` : `${tonnes.toFixed(1)} t`;
