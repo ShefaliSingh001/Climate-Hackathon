@@ -1,5 +1,7 @@
 # Frontend hand-off: real accounts in the backend database
 
+> **Done (2026-10-04):** the frontend now uses these endpoints whenever `VITE_API_URL` is set (`src/auth/serverAuth.ts`, `src/auth/token.ts`, `authApi` in `src/api/client.ts`). Demo mode still uses browser-only accounts. Kept below for reference.
+
 **For the frontend team.** The backend now stores logins in the `accounts` table (Neon Postgres in production), and
 scores listings for the signed-in account. Nothing under `frontend/` was changed. The website keeps working exactly
 as it does today: sign-up still sends `POST /listings` without a login, and quote requests too. These steps switch it

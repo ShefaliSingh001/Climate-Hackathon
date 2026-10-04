@@ -202,6 +202,8 @@ def create_collaboration(db: DB, account: dict, request_id: str, members: list[d
         listing = get_listing(db, m["listingId"])
         if listing is None or listing["kind"] != "supply":
             raise HTTPException(status_code=422, detail=f"{m['listingId']} is not a supply listing")
+        if listing["abn"] == request["abn"]:
+            raise HTTPException(status_code=422, detail=f"{listing['company']} is the buyer, so it can't supply this request")
         if listing["material"] != request["material"]:
             raise HTTPException(status_code=422, detail=f"{listing['company']} doesn't list {request['material']}")
         if listing["abn"] in seen:
@@ -361,8 +363,12 @@ def seed_demo_activity(db: DB) -> None:
                  placed=now - dt.timedelta(days=2), synthetic=True)
 
     # Two invites to the demo seller from dataset copper producers, on dataset copper requests.
-    for i, (lead, partner) in enumerate(((copper_producers[0], None), (copper_producers[1], copper_producers[2]))):
+    for i in range(2):
         request = copper_requests[i % len(copper_requests)]
+        pool = [p for p in copper_producers if p["abn"] != request["abn"]]  # a buyer never supplies itself
+        if len(pool) < 2 + i:
+            continue
+        lead, partner = pool[i], (pool[i + 1] if i else None)
         need = request["required_quantity_t"]
         cid = db.insert("collaborations", {
             "manufacturer_id": request["id"], "is_synthetic": True if db.postgres else 1,

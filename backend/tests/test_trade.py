@@ -81,7 +81,7 @@ def test_team_up_invite_accept_offer_becomes_joint_order(client):
     lead = client.post("/auth/signup", json=seller_signup(material="copper", tonnes=10, priceAud=12500)).json()
     lead_token, lead_listing = lead["token"], lead["account"]["listingId"]
     request = copper(client, "demand")[0]
-    other = next(l for l in copper(client, "supply") if l["id"] != lead_listing)
+    other = next(l for l in copper(client, "supply") if l["id"] != lead_listing and l["abn"] != request["abn"])
     body = {"requestId": request["id"], "message": "Can you cover the rest?",
             "members": [{"listingId": lead_listing, "tonnes": 10}, {"listingId": other["id"], "tonnes": 5}]}
     r = client.post("/collaborations", headers=auth_header(lead_token), json=body)
@@ -113,11 +113,14 @@ def test_collaboration_rules(client):
     seller = client.post("/auth/signup", json=seller_signup(material="copper")).json()["token"]
     request = copper(client, "demand")[0]
     steel = next(l for l in client.get("/listings", params={"kind": "supply"}).json() if l["material"] == "steel")
-    cu = copper(client, "supply")[0]
+    cu = next(l for l in copper(client, "supply") if l["abn"] != request["abn"])
     def create(token, members):
         return client.post("/collaborations", headers=auth_header(token), json={"requestId": request["id"], "members": members})
     assert create(seller, [{"listingId": steel["id"], "tonnes": 5}]).status_code == 422  # wrong material
     assert create(seller, [{"listingId": "m1", "tonnes": 5}]).status_code == 422          # not a supply listing
+    same_business = next((l for l in copper(client, "supply") if l["abn"] == request["abn"]), None)
+    if same_business:  # a business can't supply its own request
+        assert create(seller, [{"listingId": same_business["id"], "tonnes": 5}]).status_code == 422
     assert create(demo(client, "buyer"), [{"listingId": cu["id"], "tonnes": 5}]).status_code == 403  # buyers can't
     # A seller with no copper listing still leads (0 tonnes) and invites others.
     team = create(demo(client, "seller"), [{"listingId": cu["id"], "tonnes": 5}]).json()
