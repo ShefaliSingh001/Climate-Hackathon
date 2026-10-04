@@ -189,8 +189,8 @@ export function Home() {
               <div className="order-row"><span>Smithfield Cable Recovery</span><span className="num">39 tonnes</span></div>
               <div className="order-row"><span>Hunter Copper Reclaim</span><span className="num">21 tonnes</span></div>
               <div className="bar"><i /></div>
-              <div className="order-row"><span>Delivered cost</span><span className="num">$12,852 per tonne</span></div>
-              <div className="order-row"><span>vs newly sourced copper</span><span className="num good">−15%</span></div>
+              <div className="order-row"><span>Delivered cost</span><span className="num">$19,520 per tonne</span></div>
+              <div className="order-row"><span>vs newly sourced copper</span><span className="num good">−5%</span></div>
             </div>
           </Reveal>
         </div>

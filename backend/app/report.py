@@ -37,11 +37,12 @@ Rules:
 - Explain what CO2e means the first time you use it, in a few words.
 - Use the metal figures in "outlook": they are specific to this dataset's metals. The global all-materials rate \
 and the COP31 15% goal cover every material in the economy; mention them at most once, as context.
-- Say plainly that the figures are a projection from a demonstration dataset, not recorded trades.
-- Lead with the 2035 comparison from "outlook": the share of recycled and of virgin (newly mined) metal that manufacturers on ResourceX buy in 2035 with the marketplace (expected scenario) versus without it, and the range across scenarios. Then this month's marketplace results.
+- Say plainly that the figures are modelled from market data for real NSW businesses, not recorded trades.
+- Lead with the 2035 comparison from "outlook": the share of recycled and of newly sourced metal that the small and medium manufacturers on ResourceX buy in 2035 with the marketplace (expected scenario) versus without it, and the range across scenarios. Mention that the two steel mills are counted in tonnes because they already run at their process limits. Then this month's marketplace results.
 - Describe the 2035 outlook in the data ("outlook"): the recycled share of metal input for manufacturers on ResourceX, with and without the marketplace, in the expected scenario, and the range across scenarios. Say plainly that the 15% goal covers all materials across the whole economy and that metals are already above it, so the outlook shows how far manufacturers can go, not a change in the global rate.
 - Point out the single most useful insight in the data (for example, which material drives most of the climate \
 benefit, or where demand outstrips supply) and what it means for the readers.
+- Call metal that is not recycled "newly sourced", never "virgin".
 - Plain, warm, factual tone. Australian spelling. No markdown, no emoji."""
 
 REPORT_SCHEMA = {
@@ -79,6 +80,10 @@ def _prompt_data(impact: dict) -> dict:
                                           "2035": s["sharePct"][-1], "co2eAvoided2026to2035T": s["co2eAvoidedT"]}
                              for s in o["scenarios"]},
         "ceilingPct": o["ceilingPct"],
+        "buyers": o["buyers"],
+        "steelMills": {"metalUseTonnesPerMonth": o["mills"]["metalUseTonnesPerMonth"],
+                       "matchedTonnesPerMonth": o["mills"]["matchedTonnesPerMonth"],
+                       "note": "Already at their process limits, so counted in tonnes, not in the share"},
         "assumptions": o["assumptions"],
     }
     return data
@@ -94,29 +99,29 @@ def template_report(impact: dict, note: str) -> dict:
     top = impact["byMaterial"][0]
     share = top["co2eAvoidedT"] / impact["co2eAvoidedT"] if impact["co2eAvoidedT"] else 0
     tonnes_share = top["tonnes"] / impact["tonnesRecirculated"] if impact["tonnesRecirculated"] else 0
-    tenders = impact["tenders"]
     o = impact["outlook"]
     bau, exp = o["businessAsUsualPct"], next(s for s in o["scenarios"] if s["key"] == "expected")
     low, high = min(x["sharePct"][-1] for x in o["scenarios"]), max(x["sharePct"][-1] for x in o["scenarios"])
+    mills = o["mills"]
     return {
-        "headline": f"By 2035, manufacturers on ResourceX could buy {exp['sharePct'][-1]:.0f}% recycled metal, "
-                    f"up from {bau[-1]:.0f}% without it.",
+        "headline": f"By 2035, small and medium manufacturers on ResourceX could buy {exp['sharePct'][-1]:.1f}% "
+                    f"recycled metal, up from {bau[-1]:.1f}% without it.",
         "summary": [
-            f"About {bau[0]:.0f}% of the metal these {tenders['total']} NSW manufacturers buy is recycled today. Industry "
-            f"trends alone take that to {bau[-1]:.1f}% by 2035, so {100 - bau[-1]:.0f}% would still be newly mined. With "
-            f"ResourceX, the expected scenario reaches {exp['sharePct'][-1]:.1f}% recycled ({low:.1f}% to {high:.1f}% "
-            f"across scenarios), cutting virgin metal to {100 - exp['sharePct'][-1]:.0f}%.",
+            f"About {bau[0]:.0f}% of the metal the {o['buyers']} small and medium manufacturers on ResourceX buy is "
+            f"recycled today, and on current practice it stays there to 2035, so {100 - bau[-1]:.0f}% would still be "
+            f"newly mined. With ResourceX, the expected scenario reaches {exp['sharePct'][-1]:.1f}% recycled "
+            f"({low:.1f}% to {high:.1f}% across scenarios), cutting newly sourced metal to {100 - exp['sharePct'][-1]:.0f}%.",
             f"In {impact['period']}, ResourceX matched {_n(impact['tonnesRecirculated'])} of the "
             f"{_n(impact['tonnesOffered'])} tonnes of scrap offered, avoiding about {_n(impact['co2eAvoidedT'])} tonnes "
-            f"of CO2e (carbon dioxide and other greenhouse gases) after trucking, and buyers paid "
-            f"A${_n(impact['moneySavedAud'])} less than they had budgeted.",
-            f"The {bau[0]:.0f}% starting point is the world average recycled share for this dataset's metals (mostly "
-            f"steel), from IEA, IAI, ICA and worldstainless figures. These figures come from a demonstration dataset, "
-            f"not recorded trades.",
+            f"of CO2e (carbon dioxide and other greenhouse gases) after trucking. The two steel mills took "
+            f"{_n(mills['matchedTonnesPerMonth'])} tonnes; they already run at their process limits, so they are "
+            f"counted in tonnes rather than in the share.",
+            "Tonnages and prices are modelled from October 2026 market data for real NSW businesses; they are not "
+            "recorded trades.",
         ],
         "highlights": [
-            f"Virgin metal falls from {100 - bau[-1]:.0f}% to {100 - exp['sharePct'][-1]:.0f}% of what these "
-            f"manufacturers buy in 2035 (expected scenario).",
+            f"Newly sourced metal falls from {100 - bau[-1]:.1f}% to {100 - exp['sharePct'][-1]:.1f}% of what small and "
+            f"medium manufacturers buy in 2035 (expected scenario).",
             f"This month: {_n(impact['tonnesRecirculated'])} tonnes of scrap matched, avoiding "
             f"{_n(impact['co2eAvoidedT'])} tonnes of CO2e.",
             f"{top['material'].capitalize()} is {tonnes_share:.0%} of the tonnes but {share:.0%} of the CO2e avoided.",

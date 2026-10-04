@@ -5,6 +5,24 @@ Anyone (or any Claude session) picking up the frontend should read this before s
 
 ---
 
+## 2026-10-04: Realistic data across the app (October 2026 market research)
+
+**What**
+- Impact page headline is now for **SME manufacturers** (foundries and fabricators): 37.5% recycled today, 51% in 2035 with ResourceX (47.6–52.6% across scenarios), virgin 62% → 49%. The "Where these numbers come from" table is per buyer type (iron foundry, stainless foundry, fabricator reusing offcuts…), each with its source. A line explains that the two steel mills already run at their process limits and are counted in tonnes.
+- Impact page made visual and minimal: one big number (+13.6 points), recycled/new bars with the percentages inside ("new" = newly sourced), a 2026–2035 trend chart, and a "Room to grow" chart (recycled today vs process limit per buyer type, including the two steel mills at their limit) with a one-line source list. The detailed table moved into "How we calculate this"; the AI report shows its headline with the rest behind "Read the full report".
+- Fixed a class clash: the impact page's `.hero` rules also styled the homepage hero (`home.css`). Impact classes are now `impact-hero`, `impact-stat`, `impact-hero-grid`.
+- Demo listings (`api/mock/listings.json`): metal prices moved to October 2026 levels (copper ~$18,800–19,800/t, aluminium $1,300–3,600, steel $350–490) and the new-material comparison matches the backend (copper $20,500, aluminium $4,480, steel/pig iron $680). Non-metal prices already matched market data and are unchanged.
+- Sourcing defaults (`pages/Matches.tsx`) use market price ceilings; homepage sample order is now $19,520 per tonne, −5% vs new copper (copper scrap trades close to LME).
+- `lib/logistics.ts`: freight rates now cite the WA Owner-Driver Guideline Rates (2023) and DESNZ 2024; values unchanged (they sit inside that range).
+
+**Why**
+- Team request: every number realistic. Sources in `backend/data/MARKET_RESEARCH.md`.
+
+**Open items**
+- CO2 factors for paper, plastics, e-scrap and glass in `lib/materials.ts` are still preview values (demo listings only; live data is metals).
+
+---
+
 ## 2026-10-04: New impact dashboard (2035 recycled vs virgin) + AI monthly report
 
 **What**

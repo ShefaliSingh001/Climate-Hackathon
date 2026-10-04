@@ -11,9 +11,10 @@ import sqlite3
 
 GRADE_LABELS = {"high": "High quality", "medium": "Medium quality", "short_use": "Short use"}
 
-# Indicative A$/t for the virgin feedstock each recycled material replaces (pig iron, primary ingot,
-# cathode). Rough late-2026 preview values for the "vs virgin" comparison, not quotes.
-VIRGIN_PRICE_AUD = {"steel": 700, "aluminium": 4000, "copper": 15000, "brass": 11000, "alloys": 4500}
+# A$/t for the new feedstock each recycled material replaces, October 2026 at 0.6957 USD per AUD (sources in
+# backend/data/MARKET_RESEARCH.md): steel = pig iron (Brazil FOB US$475), aluminium = LME (US$3,119), copper = LME
+# (US$14,259), brass = metal value of 63% copper / 37% zinc (zinc US$3,736), stainless = 304 sheet (US$2,765).
+VIRGIN_PRICE_AUD = {"steel": 680, "aluminium": 4480, "copper": 20500, "brass": 14900, "alloys": 3970}
 
 ROAD_FACTOR = 1.25  # straight line x 1.25, same as frontend/src/lib/geo.ts
 

@@ -27,11 +27,11 @@ interface Requirement {
 // single suppliers so the combine view has something to do. Mock values follow the sample listings;
 // live values follow the NSW dataset in the backend.
 const MOCK_DEFAULTS: Partial<Record<MaterialKey, [number, number, number]>> = {
-  copper: [99, 60, 13600], aluminium: [97, 150, 3000], steel: [97, 3000, 520], plastics: [99, 120, 1850],
+  copper: [99, 60, 20000], aluminium: [97, 150, 3700], steel: [97, 3000, 520], plastics: [99, 120, 1850],
   paper: [95, 2500, 220], ewaste: [0, 10, 9000], glass: [99, 6000, 150],
 };
 const LIVE_DEFAULTS: Partial<Record<MaterialKey, [number, number, number]>> = {
-  steel: [0, 300, 330], aluminium: [0, 150, 1600], copper: [0, 60, 8000], brass: [0, 40, 5500], alloys: [0, 80, 2200],
+  steel: [0, 300, 520], aluminium: [0, 150, 3800], copper: [0, 60, 19900], brass: [0, 40, 11400], alloys: [0, 80, 2700],
 };
 const DEFAULTS = isMock ? MOCK_DEFAULTS : LIVE_DEFAULTS;
 const OFFERED = MATERIAL_KEYS.filter(k => DEFAULTS[k]);

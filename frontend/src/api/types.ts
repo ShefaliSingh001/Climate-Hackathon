@@ -190,19 +190,23 @@ export interface OutlookScenario {
   co2eAvoidedT: number;
 }
 
-/** 2035 outlook: recycled share of metal input for manufacturers on ResourceX, with and without the marketplace. */
+/** 2035 outlook: recycled share of the metal that SME manufacturers on ResourceX buy, with and without it. */
 export interface Outlook {
   metric: string;
+  /** Who the share covers, e.g. "SME manufacturers (foundries and fabricators)". */
+  segment: string;
+  buyers: number;
   years: number[];
   businessAsUsualPct: number[];
   scenarios: OutlookScenario[];
-  /** Highest share with credible evidence for this metal mix. */
+  /** Highest share these buyers' processes can take. */
   ceilingPct: number;
   metalInputTonnesPerMonth: number;
-  /** Per metal, largest share of the manufacturers' metal first. Weighting `nowPct` by `mixPct` gives `businessAsUsualPct[0]`. */
+  /** One row per kind of buyer, largest metal use first. Weighting `nowPct` by `mixPct` gives `businessAsUsualPct[0]`. */
   baselines: {
-    material: MaterialKey;
-    /** Share of the manufacturers' total metal use (from the dataset). */
+    group: string;
+    buyers: number;
+    /** Share of the group's metal use. */
     mixPct: number;
     inputTonnesPerMonth: number;
     nowPct: number;
@@ -212,6 +216,13 @@ export interface Outlook {
     source: string;
     url: string;
   }[];
+  /** Steel mills: already at their process limits, so counted in tonnes rather than in the share. */
+  mills: {
+    buyers: { name: string; process: string; metalUseTonnesPerMonth: number; recycledNowPct: number; limitPct: number;
+              matchedTonnesPerMonth: number; sourceName: string; source: string; url: string }[];
+    metalUseTonnesPerMonth: number;
+    matchedTonnesPerMonth: number;
+  };
   assumptions: string[];
 }
 

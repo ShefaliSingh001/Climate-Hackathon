@@ -1,5 +1,6 @@
-// Road-freight cost estimate. Indicative Australian rates for a hackathon demo; the backend
-// (or a carrier quote API) can replace this later without changing the callers.
+// Road-freight cost estimate. Rates sit inside the WA Owner-Driver Guideline Rates (2023): a B-double costs
+// $3.10/km regional to $5.89/km metro. Emissions: UK DESNZ 2024, articulated HGV, average laden (0.0755).
+// The backend (or a carrier quote API) can replace this later without changing the callers.
 
 export type TruckKey = 'rigid' | 'semi' | 'bdouble';
 

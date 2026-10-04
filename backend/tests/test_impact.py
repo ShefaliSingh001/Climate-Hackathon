@@ -100,3 +100,11 @@ def test_materials_without_factors_are_skipped():
     r = impact_for([producer(), plastics], [manufacturer()])
     assert r["tonnesRecirculated"] == 10
     assert any("not counted" in a for a in r["assumptions"])
+
+
+def test_buyers_paying_most_go_first():
+    """Reuse of good offcuts (higher price per tonne) is served before melting."""
+    mill = manufacturer(name="Mill", abn="33333333333", max_price_aud_per_t=480, order_by=dt.date(2026, 11, 1))
+    reuse = manufacturer(name="Fabricator", abn="44444444444", max_price_aud_per_t=1000, order_by=dt.date(2026, 11, 20))
+    trades = allocate([producer(output_quantity_t=20)], [mill, reuse])
+    assert [(t.manufacturer["name"], t.tonnes) for t in trades] == [("Fabricator", 20)]
