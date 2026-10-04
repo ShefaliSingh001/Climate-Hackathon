@@ -27,10 +27,10 @@ Other scripts: `npm run typecheck`, `npm run build`, `npm run preview`.
 | `/login`, `/signup` | Log in (with one-click demo buyer / seller) and create an account as a buyer or seller |
 | `/marketplace` | Map + compact list. Buyers see supply, sellers see buyer requests. State picker (NSW default), material chips, sort, distance, Map / Satellite / Terrain / Dark views |
 | `/listing/:id` | Full supplier page: key figures, logistics cost estimate and landed cost, material spec, route map, licences, quote form |
-| `/sourcing` (buyers) | Sourcing: enter demand and budget, then either rank single suppliers or combine several partners to meet volume within budget (`?tab=combine&material=steel`) |
+| `/sourcing` (buyers) | Sourcing: enter demand and budget, then combine suppliers into one order that meets volume within budget: add them from a card pop-up or let the AI suggest a split (`?material=steel`) |
 | `/my-listings` (sellers) | The seller's own listings (matched on ABN) |
 | `/sell/new` (sellers) | List recovered material, prefilled from the account, yard location on a map |
-| `/impact` | KPIs and the global circularity rate against the COP31 15% goal |
+| `/impact` | Redirects to the homepage's Impact section (`/#impact`): 2035 outlook, this month's figures, method and sources |
 | `/orders` | Order history dashboard (buyers: purchases with delivered cost; sellers: sales including joint orders): totals against the previous period, tonnes each month, material split, top partners, orders in progress and a searchable order table |
 | `/collaborations` (sellers) | Team up with other recyclers on buyer requests too big for one yard: invites received (accept or decline), teams you lead (send the joint offer), and requests for your materials. Teams start from the "Team up" planner on a buyer request |
 | `/settings` | Theme (system, light, dark), reduce animations, map defaults, notification switches, account details. Opened from the account menu |

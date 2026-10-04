@@ -7,7 +7,6 @@ import { Marketplace } from './pages/Marketplace';
 import { Matches } from './pages/Matches';
 import { MyListings } from './pages/MyListings';
 import { SellNew } from './pages/SellNew';
-import { Impact } from './pages/Impact';
 import { ListingDetail } from './pages/ListingDetail';
 import { Settings } from './pages/Settings';
 import { Orders } from './pages/Orders';
@@ -39,10 +38,11 @@ export function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
+          {/* Impact is a section of the homepage now. */}
+          <Route path="/impact" element={<Navigate to="/#impact" replace />} />
           <Route element={<AppShell />}>
             <Route path="/marketplace" element={<Marketplace />} />
             <Route path="/listing/:id" element={<ListingDetail />} />
-            <Route path="/impact" element={<Impact />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/orders" element={<Orders />} />
             <Route path="/collaborations" element={<RequireAuth role="seller"><Collaborations /></RequireAuth>} />

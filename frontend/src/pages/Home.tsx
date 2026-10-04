@@ -1,11 +1,12 @@
-import { useRef, type CSSProperties } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useRef, type CSSProperties } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { ArrowRight, BadgeCheck, Check, CheckCircle2, Combine, Factory, Filter, Layers3, ListOrdered, Map as MapIcon, Recycle, ShieldCheck, Sparkles, Truck } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
 import { DotField } from '../components/brand/DotField';
 import { Logo } from '../components/brand/Logo';
 import { ACT_PATH, HOME_XY, NSW_PATH, PINS } from '../components/home/nswMap';
 import { PartnerStrip } from '../components/home/PartnerStrip';
+import { ImpactSection } from '../components/home/ImpactSection';
 import { CountUp, Reveal, useScrollFx } from '../components/home/motion';
 import { MATERIALS } from '../lib/materials';
 import type { MaterialKey } from '../api/types';
@@ -28,7 +29,7 @@ function Photo({ name, className = '' }: { name: PhotoKey; className?: string })
   );
 }
 
-const NAV_LINKS: [string, string][] = [['ai', 'AI matching'], ['how', 'How it works'], ['who', "Who it's for"], ['impact', 'Impact']];
+const NAV_LINKS: [string, string][] = [['impact', 'Impact'], ['ai', 'AI matching'], ['how', 'How it works'], ['who', "Who it's for"]];
 const SECTIONS = NAV_LINKS.map(([id]) => id);
 
 // The homepage map is zoomed into Greater Sydney, the Hunter and the Illawarra, where most sample suppliers are.
@@ -149,6 +150,14 @@ export function Home() {
   const navRef = useRef<HTMLElement>(null);
   const { scrolled, active } = useScrollFx(navRef, SECTIONS);
 
+  // Links like /#impact (the old /impact page redirects there) land on the section, not the top.
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (!hash) return;
+    const el = document.getElementById(decodeURIComponent(hash.slice(1)));
+    if (el) requestAnimationFrame(() => el.scrollIntoView({ block: 'start', behavior: 'instant' }));
+  }, [hash]);
+
   return (
     <div className="home">
       <header ref={navRef} className={`home-nav${scrolled ? ' scrolled' : ''}`}>
@@ -195,7 +204,9 @@ export function Home() {
 
       <PartnerStrip />
 
-      <section className="band" id="problem">
+      <ImpactSection />
+
+      <section className="band problem" id="problem">
         <div className="wrap problem-grid">
           <Reveal className="problem-head" variant="left">
             <span className="eyebrow">The problem</span>
@@ -301,23 +312,6 @@ export function Home() {
               </div>
             </Reveal>
           </div>
-        </div>
-      </section>
-
-      <section className="band impact" id="impact">
-        <div className="wrap">
-          <Reveal className="center-head">
-            <span className="eyebrow">Impact</span>
-            <h2>Every tonne traded is a tonne not mined</h2>
-            <p>ResourceX counts what is delivered and what it avoids, so councils, buyers and investors can see progress toward the COP31 goal.</p>
-          </Reveal>
-          <Reveal className="impact-grid" stagger>
-            <div><b><CountUp value={9} decimals={1} suffix=" tonnes" /></b><span>of CO₂e avoided per tonne of recycled aluminium</span></div>
-            <div><b><CountUp value={3} decimals={1} suffix=" tonnes" /></b><span>of CO₂e avoided per tonne of recycled copper</span></div>
-            <div><b><CountUp value={1.4} decimals={1} suffix=" tonnes" /></b><span>of CO₂e avoided per tonne of recycled steel</span></div>
-            <div><b>$ per tonne</b><span>delivered cost shown for every route</span></div>
-          </Reveal>
-          <p className="src">Indicative emissions factors used in the ResourceX prototype. Replace with audited factors before reporting.</p>
         </div>
       </section>
 

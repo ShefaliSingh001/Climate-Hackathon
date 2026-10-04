@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, CheckCircle2, Handshake, Plus, Send, Sparkles, X } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Handshake, Plus, RotateCw, Send, Sparkles, X } from 'lucide-react';
 import type { Listing } from '../../api/types';
 import { api } from '../../api/client';
 import { useAuth, useSite } from '../../auth/AuthProvider';
@@ -12,18 +12,42 @@ import { PRICE_NOTE, aud, fmtInt, monthlyTonnes, tonnes as fmtTonnes } from '../
 import { NumberField } from '../ui/NumberField';
 import { SupplierPicker } from '../sourcing/SupplierPicker';
 
-const MAX_PARTNERS = 3;
+const MAX_PARTNERS = 5;
 
-/** Fills the request from your own listings first, then the nearest other suppliers. */
-function suggest(need: number, mine: Listing[], others: Listing[]) {
+const cap = (l: Listing) => Math.floor(monthlyTonnes(l.tonnes, l.frequency));
+
+/** Your own listings, each offering what it can toward the request. The starting point: no partners yet. */
+function ownLines(need: number, mine: Listing[]) {
   const out: Record<string, number> = {};
   let left = need;
-  for (const l of [...mine, ...others.slice(0, MAX_PARTNERS)]) {
-    if (left <= 0) break;
-    const t = Math.min(left, Math.floor(monthlyTonnes(l.tonnes, l.frequency)));
-    if (t > 0) { out[l.id] = t; left -= t; }
+  for (const l of mine) {
+    const t = Math.max(0, Math.min(left, cap(l)));
+    out[l.id] = t;
+    left -= t;
   }
   return out;
+}
+
+/**
+ * Adds the nearest recyclers not yet in the team until the request is covered (at most MAX_PARTNERS partners in total).
+ * Keeps everything already chosen, including partners added by hand. Returns the new lines and how many were added.
+ */
+function suggestPartners(lines: Record<string, number>, need: number, others: Listing[]) {
+  const next = { ...lines };
+  let left = need - Object.values(next).reduce((a, b) => a + b, 0);
+  let partners = others.filter(l => l.id in next).length;
+  let added = 0;
+  for (const l of others) {
+    if (left <= 0 || partners >= MAX_PARTNERS) break;
+    if (l.id in next) continue;
+    const t = Math.min(left, cap(l));
+    if (t <= 0) continue;
+    next[l.id] = t;
+    left -= t;
+    partners += 1;
+    added += 1;
+  }
+  return { next, added, left: Math.max(0, left) };
 }
 
 /**
@@ -34,13 +58,17 @@ function suggest(need: number, mine: Listing[], others: Listing[]) {
 export function TeamUpPlanner({ request }: { request: Listing }) {
   const { account } = useAuth();
   const site = useSite();
-  const supply = useAsync(() => api.listListings('supply', site), [site]);
+  const [attempt, setAttempt] = useState(0);
+  // Keyed on the coordinates, not the object: signing in again hands back an equal site, which must not refetch and reset the team.
+  const supply = useAsync(() => api.listListings('supply', site), [site.lat, site.lng, attempt]);
   const need = Math.round(monthlyTonnes(request.tonnes, request.frequency));
 
   const { mine, others } = useMemo(() => {
     // Same material, and never the buyer itself (some businesses both buy and sell).
-    const same = (supply.data ?? []).filter(l => l.material === request.material && l.abn !== request.abn);
-    const isMine = (l: Listing) => !!account && l.abn === account.abn;
+    // Compare ABNs only when both are on file: sample listings without one must not count as the same business.
+    const sameAbn = (x?: string, y?: string) => !!x && x === y;
+    const same = (supply.data ?? []).filter(l => l.material === request.material && !sameAbn(l.abn, request.abn));
+    const isMine = (l: Listing) => !!account && sameAbn(l.abn, account.abn);
     const byDistance = (a: Listing, b: Listing) => roadKm(a, request) - roadKm(b, request);
     return { mine: same.filter(isMine).sort(byDistance), others: same.filter(l => !isMine(l)).sort(byDistance) };
   }, [supply.data, account, request]);
@@ -50,8 +78,16 @@ export function TeamUpPlanner({ request }: { request: Listing }) {
   const [state, setState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const [err, setErr] = useState('');
   const [picking, setPicking] = useState(false);
+  const [note, setNote] = useState('');
 
-  useEffect(() => { if (supply.data) setLines(suggest(need, mine, others)); }, [supply.data, need, mine, others]);
+  // Start from your own listing only, once per request. Re-renders and refetches never undo what you've added.
+  const seeded = useRef<string | null>(null);
+  useEffect(() => {
+    if (!supply.data || seeded.current === request.id) return;
+    seeded.current = request.id;
+    setLines(ownLines(need, mine));
+    setNote('');
+  }, [supply.data, request.id, need, mine]);
 
   const all = [...mine, ...others];
   // Rows shown: your own listings always, then the partners you've added (in the order added).
@@ -69,11 +105,26 @@ export function TeamUpPlanner({ request }: { request: Listing }) {
   const m = MATERIALS[request.material];
 
   const setT = (id: string, t: number | null) => setLines(prev => ({ ...prev, [id]: t ?? 0 }));
-  const remove = (id: string) => setLines(({ [id]: _gone, ...rest }) => rest);
+  const remove = (id: string) => { setNote(''); setLines(({ [id]: _gone, ...rest }) => rest); };
   const candidates = others.filter(l => !(l.id in lines));
+  const materialName = m.label.toLowerCase();
+
+  function suggest() {
+    const { next, added, left } = suggestPartners(lines, need, others);
+    setLines(next);
+    const word = (n: number) => `${n} nearby ${n === 1 ? 'recycler' : 'recyclers'}`;
+    setNote(added === 0
+      ? (candidates.length === 0 ? `No more recyclers list ${materialName}, so there is nobody else to suggest.`
+        : left === 0 || short === 0 ? 'Your team already covers the request. Add partners by hand if you want more.'
+        : `Your team already has ${MAX_PARTNERS} partners. Remove one to try others.`)
+      : left > 0 ? `Added ${word(added)}. Still ${fmtTonnes(left)} a month short.`
+      : `Added ${word(added)}. The team now covers the request.`);
+  }
+
   /** Adds partners from the pop-up, each covering as much of what is still short as it can. */
   function addPartners(ids: string[]) {
     setPicking(false);
+    setNote(ids.length ? `Added ${ids.length} ${ids.length === 1 ? 'partner' : 'partners'}.` : '');
     setLines(prev => {
       let left = Math.max(0, need - Object.values(prev).reduce((a, b) => a + b, 0));
       const next = { ...prev };
@@ -104,8 +155,8 @@ export function TeamUpPlanner({ request }: { request: Listing }) {
       <div className="panel-head">
         <h2 className="with-icon"><Handshake size={16} />Team up with other recyclers</h2>
         <div className="split-actions">
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPicking(true)} disabled={!candidates.length}><Plus size={14} />Add partners</button>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setLines(suggest(need, mine, others))}><Sparkles size={14} />Suggest partners</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPicking(true)} disabled={!supply.data}><Plus size={14} />Add partners</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={suggest} disabled={!supply.data}><Sparkles size={14} />Suggest partners</button>
         </div>
       </div>
       <p className="hint">
@@ -115,16 +166,22 @@ export function TeamUpPlanner({ request }: { request: Listing }) {
       </p>
 
       {supply.loading && !supply.data && <div className="skeleton" style={{ height: 140, marginTop: 12 }} />}
+      {supply.error && !supply.data && (
+        <div className="notice warn" role="alert">
+          <AlertTriangle size={16} />Couldn’t load recyclers that list {materialName}.
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAttempt(a => a + 1)}><RotateCw size={14} />Try again</button>
+        </div>
+      )}
 
       {supply.data && (
         <>
           {chosen.length === 0 ? (
             <div className="split-empty">
               <Handshake size={26} />
-              <p><b>No partners yet.</b><br />Add recyclers who list {m.label.toLowerCase()}, or let ResourceX suggest the nearest ones.</p>
+              <p><b>No partners yet.</b><br />Add recyclers who list {materialName}, or let ResourceX suggest the nearest ones.</p>
               <div className="split-empty-actions">
-                <button type="button" className="btn btn-primary" onClick={() => setPicking(true)} disabled={!candidates.length}><Plus size={16} />Add partners</button>
-                <button type="button" className="btn btn-ghost" onClick={() => setLines(suggest(need, mine, others))}><Sparkles size={16} />Suggest partners</button>
+                <button type="button" className="btn btn-primary" onClick={() => setPicking(true)}><Plus size={16} />Add partners</button>
+                <button type="button" className="btn btn-ghost" onClick={suggest}><Sparkles size={16} />Suggest partners</button>
               </div>
             </div>
           ) : (
@@ -134,7 +191,7 @@ export function TeamUpPlanner({ request }: { request: Listing }) {
                 <tbody>
                   {chosen.map(l => {
                     const own = mine.includes(l);
-                    const cap = Math.floor(monthlyTonnes(l.tonnes, l.frequency));
+                    const most = cap(l);
                     return (
                       <tr key={l.id} className={(lines[l.id] ?? 0) > 0 ? '' : 'off'}>
                         <td>
@@ -143,10 +200,10 @@ export function TeamUpPlanner({ request }: { request: Listing }) {
                             <div><b>{l.company}</b>{own ? <span className="tag good" style={{ marginLeft: 6 }}>You</span> : <span className="tag" style={{ marginLeft: 6 }}>Invite</span>}<small>{l.suburb}, {l.state}</small></div>
                           </div>
                         </td>
-                        <td className="r num">{fmtInt(cap)}<small>tonnes a month</small></td>
+                        <td className="r num">{fmtInt(most)}<small>tonnes a month</small></td>
                         <td className="r num">{aud(l.priceAud)}<small>per tonne</small></td>
                         <td className="r num">{fmtInt(roadKm(l, request))} km</td>
-                        <td className="r"><NumberField className="t-input" min={0} max={cap} value={lines[l.id] ?? 0} onChange={v => setT(l.id, v)} aria-label={`Tonnes from ${l.company}`} /></td>
+                        <td className="r"><NumberField className="t-input" min={0} max={most} value={lines[l.id] ?? 0} onChange={v => setT(l.id, v)} aria-label={`Tonnes from ${l.company}`} /></td>
                         <td>{!own && <button type="button" className="icon-btn" onClick={() => remove(l.id)} aria-label={`Remove ${l.company}`}><X size={15} /></button>}</td>
                       </tr>
                     );
@@ -155,6 +212,7 @@ export function TeamUpPlanner({ request }: { request: Listing }) {
               </table>
             </div>
           )}
+          {note && <p className="teamup-note" role="status"><Sparkles size={14} />{note}</p>}
 
           <div className="teamup-summary">
             <div className="meter">
@@ -199,7 +257,10 @@ export function TeamUpPlanner({ request }: { request: Listing }) {
           title="Add partners"
           noun={{ one: 'partner', many: 'partners' }}
           distanceText="to the buyer"
-          intro={`${candidates.length} other ${candidates.length === 1 ? 'recycler lists' : 'recyclers list'} ${m.label.toLowerCase()} · ranked for ${request.company}${short > 0 ? ` · the team still needs ${fmtTonnes(short)} a month` : ''}.`.replace(/\.\.$/, '.')}
+          intro={candidates.length
+            ? `${candidates.length} other ${candidates.length === 1 ? 'recycler lists' : 'recyclers list'} ${materialName} · ranked for ${request.company}${short > 0 ? ` · the team still needs ${fmtTonnes(short)} a month` : ''}.`
+            : `Recyclers that list ${materialName}, ranked for ${request.company}.`}
+          emptyText={others.length ? `Every recycler that lists ${materialName} is already in your team.` : `No other recyclers list ${materialName} yet.`}
           onAdd={addPartners}
           onClose={() => setPicking(false)}
         />

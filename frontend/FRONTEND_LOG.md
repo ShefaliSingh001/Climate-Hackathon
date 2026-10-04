@@ -5,6 +5,38 @@ Anyone (or any Claude session) picking up the frontend should read this before s
 
 ---
 
+## 2026-10-04: Impact moves onto the homepage, Sourcing is combine-only, Team up buttons fixed
+
+**What**
+- **Impact on the homepage:** the teammate's Impact page (#13) is now a section of the homepage, between the "Data and guidance from" strip and The problem (`components/home/ImpactSection.tsx`). It keeps everything except "Room to grow":
+  - a headline row: the count-up gain in percentage points, then the 2035 share without and with ResourceX;
+  - two cards: "Recycled vs newly sourced metal" (bars wipe in on reveal) and "Recycled share, 2026–2035" (the line draws in, scenario range and dashed "without" line);
+  - a "This month on ResourceX" strip with icons;
+  - "How we calculate this", folded (tables, assumptions, sources, the global circularity chart).
+  - Same data as before (`api.getImpact()`, so demo mode and `GET /impact` both work). A skeleton holds the space while it loads; on error a single muted line shows.
+- **Impact page removed:** `pages/Impact.tsx` is gone. `/impact` redirects to `/#impact`, and the homepage jumps to a `#section` on load. Impact is no longer in the app top bar for either role. The homepage nav lists Impact first, matching the section order. The old dark emission-factors band near the bottom was removed (its content is in the new section's method). The problem section now sits on the surface colour, so neighbouring sections alternate.
+- **Sourcing is combine-only:** the "Ranked suppliers" tab is gone; the page is the requirement form plus the combine planner. Removed what only the ranked view used: `RankBars.tsx`, `rankBreakdowns` and `plainReason` in `lib/ranking.ts`, and the `.mcard`, `.bars` and `.rank-bar` CSS. `api.findMatches` stays in the client (contract) but the UI no longer calls it. `?tab=` links still work (ignored).
+- **Team up: "Add partners" and "Suggest partners" did nothing.** Causes and fixes (`components/collab/TeamUpPlanner.tsx`, `components/sourcing/SupplierPicker.tsx`):
+  - In demo mode the sample listings have no ABN, so the "never the buyer itself" check (`l.abn !== request.abn`, both undefined) filtered out every recycler. The pop-up was empty and Suggest had nobody to add. ABNs are now compared only when both are on file.
+  - The planner auto-filled partners on load, so on requests with few recyclers "Add partners" was disabled and "Suggest" rebuilt the same list. It now starts with your own listing only, once per request (re-renders and auth refreshes no longer reset it).
+  - "Add partners" always opens the pop-up; with nobody left it explains why ("Every recycler that lists brass is already in your team" / "No other recyclers list brass yet").
+  - "Suggest partners" adds the nearest recyclers until the request is covered (up to 5 partners), keeps partners you added by hand, and says what it did ("Added 2 nearby recyclers…").
+  - If recyclers fail to load, an error with "Try again" shows instead of dead buttons.
+  - The pop-up renders on `<body>` (portal), so no panel can clip it.
+
+**Files** `components/home/ImpactSection.tsx` (new), `pages/Home.tsx`, `pages/Impact.tsx` (deleted), `App.tsx`, `components/layout/TopBar.tsx`, `pages/Matches.tsx`, `components/listings/RankBars.tsx` (deleted), `lib/ranking.ts`, `components/collab/TeamUpPlanner.tsx`, `components/sourcing/SupplierPicker.tsx`, `styles/home.css`, `styles/app.css`, `README.md`, `CLAUDE.md`.
+
+**Checked** typecheck and build; backend tests unchanged (71 pass). Playwright in demo mode and against the local API:
+- homepage section order, no "Room to grow", figures match `/impact`, the line and bars animate, the method opens;
+- `/impact` lands on the section; no Impact link in the app top bar;
+- Sourcing has no tabs, and Add suppliers works;
+- Team up on steel, aluminium, alloys and brass (API) and aluminium, steel, copper and glass (demo): Add partners opens the pop-up and adds a partner, Suggest adds and reports, and invites send;
+- 390 px with no horizontal scroll, light and dark, and no console errors.
+
+**Open** `api.getImpactReport` and `api.findMatches` are unused by the UI now; keep them for the contract or drop them later.
+
+---
+
 ## 2026-10-04: Backend for orders and collaborations, real logins in API mode, card icons, shared pop-up
 
 **What**

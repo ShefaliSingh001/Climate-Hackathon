@@ -1,18 +1,15 @@
-import { useMemo, useState, type CSSProperties, type FormEvent } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { BadgeCheck, Layers3, ListOrdered, Sparkles, Trophy } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Sparkles } from 'lucide-react';
 import { api, isMock } from '../api/client';
 import type { GradeKey, MaterialKey } from '../api/types';
 import { useAsync } from '../hooks/useAsync';
 import { GRADES, MATERIALS, MATERIAL_KEYS } from '../lib/materials';
 import { useSite } from '../auth/AuthProvider';
-import { PRICE_NOTE, aud, volume } from '../lib/format';
-import { plainReason, rankBreakdowns } from '../lib/ranking';
+import { PRICE_NOTE, aud } from '../lib/format';
 import { NumberField } from '../components/ui/NumberField';
 import { Select } from '../components/ui/Select';
-import { RankBars } from '../components/listings/RankBars';
 import { CombinePlanner } from '../components/sourcing/CombinePlanner';
-import { VERIFIED_LABEL, isVerified } from '../lib/verify';
 
 interface Requirement {
   material: MaterialKey;
@@ -42,35 +39,24 @@ const requirement = (material: MaterialKey): Requirement => {
   return { material, grade: isMock ? undefined : 'high', minPurity, tonnesPerMonth, budgetAud: tonnesPerMonth * perT };
 };
 
-type Tab = 'ranked' | 'combine';
-
 export function Matches() {
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
   const HOME_SITE = useSite();
-  const tab: Tab = params.get('tab') === 'combine' ? 'combine' : 'ranked';
   const initialMaterial = (OFFERED as string[]).includes(params.get('material') ?? '') ? (params.get('material') as MaterialKey) : OFFERED[0];
 
   const [draft, setDraft] = useState<Requirement>(() => requirement(initialMaterial));
   const [submitted, setSubmitted] = useState<Requirement>(draft);
-  const ceiling = submitted.tonnesPerMonth ? submitted.budgetAud / submitted.tonnesPerMonth : 0;
-
-  const ranked = useAsync(
-    () => api.findMatches({ material: submitted.material, grade: submitted.grade, minPurity: submitted.minPurity, tonnesPerMonth: submitted.tonnesPerMonth, maxPriceAud: ceiling, site: HOME_SITE }),
-    [submitted],
-  );
-  const breakdownRanks = useMemo(() => rankBreakdowns((ranked.data ?? []).map(r => r.breakdown)), [ranked.data]);
   const supply = useAsync(() => api.listListings('supply', HOME_SITE), []);
 
   const update = (patch: Partial<Requirement>) => setDraft(d => ({ ...d, ...patch }));
   const onSubmit = (e: FormEvent) => { e.preventDefault(); setSubmitted(draft); };
-  const setTab = (t: Tab) => setParams(p => { p.set('tab', t); return p; }, { replace: true });
 
   return (
     <main className="page">
       <div className="page-inner">
         <div className="page-head">
           <h1>Source recycled material</h1>
-          <p>Describe what your plant needs each month. Rank single suppliers, or let ResourceX split the order across several partners to reach your volume within budget.</p>
+          <p>Describe what your plant needs each month. ResourceX combines suppliers into one order that reaches your volume within budget.</p>
         </div>
 
         <div className="matches-grid">
@@ -100,53 +86,17 @@ export function Matches() {
             <label className="field">Delivery site
               <input id="m-site" value={`${HOME_SITE.name}, ${HOME_SITE.suburb} ${HOME_SITE.state}`} readOnly />
             </label>
-            <button className="btn btn-primary" type="submit"><Sparkles size={16} />Update results</button>
+            <button className="btn btn-primary" type="submit"><Sparkles size={16} />Update plan</button>
             {isMock
-              ? <p className="hint">Demo mode: rankings and splits are worked out in the browser. With VITE_API_URL set, they come from the matching model.</p>
+              ? <p className="hint">Demo mode: suggested splits are worked out in the browser. With VITE_API_URL set, they come from the matching model.</p>
               : <p className="hint">Suppliers must match the material and grade exactly, hold stock in the delivery window (next month) and fit the budget. Freight is estimated separately.</p>}
           </form>
 
           <div className="stack">
-            <div className="tabs" role="tablist">
-              <button role="tab" aria-selected={tab === 'ranked'} onClick={() => setTab('ranked')}><ListOrdered size={16} />Ranked suppliers</button>
-              <button role="tab" aria-selected={tab === 'combine'} onClick={() => setTab('combine')}><Layers3 size={16} />Combine suppliers</button>
-            </div>
-
-            {tab === 'combine' ? (
-              supply.data
-                ? <CombinePlanner supply={supply.data} request={{ ...submitted, site: HOME_SITE }} />
-                : <div className="skeleton" style={{ height: 240 }} />
-            ) : (
-              <div className="mlist" aria-live="polite" aria-busy={ranked.loading}>
-                {ranked.error && <div className="panel empty">Couldn't load matches: {ranked.error.message}</div>}
-                {ranked.loading && !ranked.data && [0, 1, 2].map(i => <div key={i} className="skeleton" style={{ height: 110 }} />)}
-                {ranked.data && ranked.data.length === 0 && <div className="panel empty">No supply listed for this material yet.</div>}
-                {ranked.data?.map((r, i) => {
-                  const l = r.listing;
-                  const eligible = r.eligible !== false;
-                  const factors = breakdownRanks[i];
-                  return (
-                    <article key={l.id} className="mcard" style={{ opacity: ranked.loading || r.eligible === false ? 0.6 : 1 }}>
-                      <div className={`rank-badge${eligible && i < 3 ? ' podium' : ''}`}>{eligible ? <><b>#{i + 1}</b><span>of {ranked.data!.length}</span></> : <span>Not eligible</span>}</div>
-                      <div style={{ minWidth: 0 }}>
-                        <h3>
-                          <span className="code small" style={{ '--c': MATERIALS[l.material].color } as CSSProperties} title={MATERIALS[l.material].label}>{MATERIALS[l.material].code}</span>
-                          <Link to={`/listing/${l.id}`}>{l.company}</Link>
-                          {isVerified(l) && <span className="verified" title={VERIFIED_LABEL}><BadgeCheck size={15} /></span>}
-                          {r.inBestPlan && <span className="tag good" title="Part of the cheapest combined order"><Trophy size={13} /> Best combined order</span>}
-                        </h3>
-                        <p>{l.grade} · {volume(l.tonnes, l.frequency)} · {aud(l.priceAud)} per tonne · {l.suburb}, {l.state}</p>
-                        <p className="why">{r.reasons.map(plainReason).join(' · ')}</p>
-                      </div>
-                      <div className="bars">
-                        <div className="total"><span>{eligible ? 'Position on each factor' : 'Ruled out'}</span></div>
-                        <RankBars factors={factors} of={ranked.data!.length} />
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            )}
+            {supply.error && !supply.data && <div className="panel empty">Couldn't load suppliers: {supply.error.message}</div>}
+            {supply.data
+              ? <CombinePlanner supply={supply.data} request={{ ...submitted, site: HOME_SITE }} />
+              : !supply.error && <div className="skeleton" style={{ height: 240 }} />}
           </div>
         </div>
       </div>
