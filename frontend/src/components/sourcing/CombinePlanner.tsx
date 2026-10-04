@@ -236,8 +236,8 @@ export function CombinePlanner({ supply, request }: Props) {
         {' '}Landed cost = supplier price + estimated road freight to your site. Freight uses the cheapest truck per partner and assumes an empty return leg.
       </p>
       {picking && (
-        <SupplierPicker candidates={spare} site={req.site} material={req.material} shortT={plan.shortfallT}
-          onAdd={add} onClose={() => setPicking(false)} />
+        <SupplierPicker candidates={spare} site={req.site} onAdd={add} onClose={() => setPicking(false)}
+          intro={`${spare.length} ${MATERIALS[req.material].label.toLowerCase()} ${spare.length === 1 ? 'supplier matches' : 'suppliers match'} your grade and purity${plan.shortfallT > 0.5 ? ` · you still need ${tonnes(plan.shortfallT)} a month` : ''}.`} />
       )}
     </div>
   );

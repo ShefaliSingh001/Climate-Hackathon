@@ -35,14 +35,16 @@ src/
   api/          types.ts (shared shapes), client.ts (mock vs real switch on VITE_API_URL)
     mock/       listings.json (sample AU listings), mockApi.ts, scoring.ts (stand-in for the AI model),
                 orders.ts (sample order history per demo account), collaborations.ts (seller teams, stored in the browser)
-  auth/         types.ts (Role, Account, AuthClient), mockAuth.ts (demo accounts, browser storage), AuthProvider.tsx (useAuth, useSite, RequireAuth)
+  auth/         types.ts (Role, Account, AuthClient), mockAuth.ts (demo mode: browser-only accounts), serverAuth.ts + token.ts
+                (API mode: backend /auth/* logins, bearer token), AuthProvider.tsx (useAuth, useSite, RequireAuth)
   components/
     brand/      Logo (mark + live wordmark), DotField (animated dot-wave canvas)
     home/       nswMap.ts (pre-projected NSW outline + sample pins for the homepage),
                 motion.tsx (Reveal, CountUp, useScrollFx: homepage scroll effects)
     layout/     TopBar (role-based nav, search, account menu with Settings and a theme toggle)
-    collab/     TeamUpPlanner (seller view of a buyer request: combine your supply with other recyclers, invite them)
-    listings/   FilterBar (state, materials, sort, distance), ListingCard (rail card: position + Material / Production rate / Price / Distance),
+    collab/     TeamUpPlanner (seller view of a buyer request: your listing + partners added through the SupplierPicker pop-up, then invite)
+    listings/   FilterBar (state, materials, sort, distance), ListingCard (rail card: position + Material / Production rate / Price / Distance with mini icons;
+                also used in the Add suppliers / Add partners pop-up),
                 RankBars (Material / Distance / Price / Reliability bars labelled with positions; Sourcing only),
                 LogisticsEstimate (freight + landed cost), EnquiryForm
     map/        MarketMap (pins, state outline, radius, controls), LayerSwitcher, layers.ts (tile sources),
@@ -50,7 +52,7 @@ src/
                 RouteMap (your site + partners, animated road routes via lib/routing.ts, dashed line fallback)
     orders/     MonthlyChart (single-series columns with hover tooltip)
     sourcing/   CombinePlanner (buyer builds a combined order: starts empty, Add suppliers or Suggest a split with AI),
-                SupplierPicker (Add suppliers pop-up, same cards as the map side list)
+                SupplierPicker (card pop-up for adding supply listings: buyer "Add suppliers" and seller "Add partners")
     ui/         CircularityChart, Select (custom accessible dropdown; use it, never a native <select>),
                 NumberField (text-based number input that can be cleared; use it, never type="number"),
                 MultiSelect (checkbox dropdown, empty = all), Switch (on/off with label)
@@ -85,7 +87,7 @@ src/
 
 ## Known gaps / ideas
 
-- Auth is browser-only (demo). See `AUTH.md` for moving it to the backend.
+- Auth: demo mode keeps accounts in the browser (`mockAuth`); with `VITE_API_URL` set the app uses the backend logins (`serverAuth`) and sends the bearer token on every call. Orders and Collaborations need a login in API mode.
 - Road routes come from the public OSRM demo server (fair use, no SLA). For production use a hosted router (self-hosted OSRM, Valhalla, GraphHopper or Mapbox). Without a route, distance falls back to straight line × 1.25 (`lib/geo.ts`).
 - Freight rates and the order planner run in the browser (`lib/logistics.ts`, `lib/sourcing.ts`); the backend can take them over later.
 - No marker clustering yet; fine for ~50 listings.

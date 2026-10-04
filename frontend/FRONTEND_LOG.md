@@ -5,6 +5,54 @@ Anyone (or any Claude session) picking up the frontend should read this before s
 
 ---
 
+## 2026-10-04: Backend for orders and collaborations, real logins in API mode, card icons, shared pop-up
+
+**What**
+- **Backend** (separate commits, reviewed by the backend owner; see `backend/HANDOFF_ORDERS_COLLAB.md`):
+  - new tables `orders`, `collaborations` and `collaboration_members` in both schemas;
+  - `GET /orders` and the `/collaborations…` endpoints in `backend/app/trade.py`;
+  - signed-in quote requests and offers create pending orders;
+  - a sent joint offer becomes a pending joint order;
+  - `verified` = ABN on file, and listings save and return `address` and `postcode`;
+  - demo accounts get seeded history and invites;
+  - 68 tests pass on SQLite and Postgres.
+- **API mode uses the backend logins** (the steps in `backend/FRONTEND_HANDOFF.md`):
+  - new `auth/token.ts` and `auth/serverAuth.ts`, plus `authApi` in `api/client.ts`;
+  - every call sends `Authorization: Bearer <token>`, errors carry `status`, and 204 is handled;
+  - `AuthProvider` picks `serverAuth` when `VITE_API_URL` is set and re-checks `/auth/me` on load;
+  - sign-up sends the business with the login in one call;
+  - `useListings` refetches when the account changes;
+  - demo mode is unchanged.
+- **Map cards:** each stat has a mini icon (Material: package, Production rate: factory, Quantity needed: clipboard, Price: dollar, Distance: route). The icons are decorative; the labels stay as text.
+- **One pop-up for both sides:** `SupplierPicker` now takes a title, a noun, an intro line and the distance wording.
+  - Buyers: Combine suppliers → **Add suppliers**.
+  - Sellers: the Team up planner shows your listing plus the partners you added (editable tonnes, remove), with **Add partners** opening the same card pop-up (distances read "to the buyer") and **Suggest partners**.
+  - A business that is the buyer on a request is never offered as its partner (fixed in the UI and the API).
+
+**Tested end to end against the real API** (uvicorn on a copy of the SQLite file, frontend built with `VITE_API_URL`):
+- demo buyer: login → Orders (69 seeded orders) → a quote request adds a pending order;
+- demo seller: accept an invite → team up on a copper request → two partners accept through the API → send the joint offer → it appears in Orders as a joint order;
+- sign-up with the address search (offline fallback).
+
+**Files**
+- Frontend:
+  - New: `auth/token.ts`, `auth/serverAuth.ts`.
+  - Changed:
+    - API and auth: `api/client.ts`, `auth/types.ts`, `auth/AuthProvider.tsx`
+    - Pages and hooks: `pages/Auth.tsx`, `hooks/useListings.ts`
+    - Components: `ListingCard`, `SupplierPicker`, `CombinePlanner`, `TeamUpPlanner`
+    - Styles: `styles/app.css`
+    - Docs: `API_CONTRACT.md`, `CLAUDE.md`
+- Backend:
+  - New: `backend/app/trade.py`, `backend/tests/test_trade.py`, `backend/HANDOFF_ORDERS_COLLAB.md`.
+  - Changed: the two schema files, `main.py`, `listings.py`, `db.py`, `backend/README.md`, `backend/FRONTEND_HANDOFF.md` and one bullet in the root `CLAUDE.md`.
+
+**Open items**
+- Orders never move past `pending` yet (no confirm or delivery endpoint).
+- "Suggest partners" uses the nearest recyclers. It could use the matching model's `/collaborate` mode instead.
+
+---
+
 ## 2026-10-04: Address search on the map, AI-matching homepage, ABN = verified, buyer picks suppliers
 
 **What**

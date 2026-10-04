@@ -181,12 +181,16 @@ export function Signup() {
         virginPriceAud: null, purity: null, certifications: seller ? biz.certifications : [],
         ...(seller ? {} : { budgetAud: biz.budgetAud, orderBy: biz.orderBy, deliverBy: biz.deliverBy }),
       };
-      try {
-        await api.createListing(listing);
-      } catch (err) {
-        throw new Error(`Couldn't save your business: ${(err as Error).message}`);
+      if (isMock) {
+        // Demo mode: save the listing in the browser, then the login.
+        try {
+          await api.createListing(listing);
+        } catch (err) {
+          throw new Error(`Couldn't save your business: ${(err as Error).message}`);
+        }
       }
-      await signUp({ ...form, abn, role, site });
+      // With the backend, the business and the login are saved together in one transaction.
+      await signUp({ ...form, abn, role, site, listing });
       navigate(seller ? '/my-listings' : '/marketplace', { replace: true });
     } catch (err) {
       setErrors({ form: (err as Error).message });

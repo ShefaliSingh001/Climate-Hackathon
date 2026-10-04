@@ -2,6 +2,8 @@
 // leave it empty to run on the built-in mock data. See API_CONTRACT.md.
 import type { Collaboration, Enquiry, ImpactReport, ImpactStats, Listing, ListingKind, MatchRequest, MatchResult, NewCollaboration, NewListing, Order, OrderPlanRequest, OrderPlanResult, Site } from './types';
 import { mockApi } from './mock/mockApi';
+import type { Account, Role, SignUpInput } from '../auth/types';
+import { getToken } from '../auth/token';
 
 export interface Api {
   listListings(kind: ListingKind, site: Site): Promise<Listing[]>;
@@ -27,15 +29,19 @@ export interface Api {
 const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? '';
 
 async function http<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getToken();
   const res = await fetch(`${BASE}${path}`, {
     ...init,
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...init?.headers },
   });
   if (!res.ok) {
     // The backend sends { "error": "..." }; fall back to the status when it doesn't.
     const body = await res.json().catch(() => null) as { error?: string } | null;
-    throw new Error(body?.error ?? `${init?.method ?? 'GET'} ${path} failed with ${res.status}`);
+    const err = new Error(body?.error ?? `${init?.method ?? 'GET'} ${path} failed with ${res.status}`) as Error & { status?: number };
+    err.status = res.status;
+    throw err;
   }
+  if (res.status === 204) return undefined as T;
   return res.json() as Promise<T>;
 }
 
@@ -57,6 +63,17 @@ const httpApi: Api = {
     http(`/collaborations/${encodeURIComponent(id)}/respond`, { method: 'POST', body: JSON.stringify({ accept }) }),
   withdrawCollaboration: id => http(`/collaborations/${encodeURIComponent(id)}/withdraw`, { method: 'POST' }),
   sendJointOffer: id => http(`/collaborations/${encodeURIComponent(id)}/offer`, { method: 'POST' }),
+};
+
+type Session = { token: string; account: Account };
+
+/** Backend logins (POST /auth/*). Only used when VITE_API_URL is set; see src/auth/serverAuth.ts. */
+export const authApi = {
+  signUp: (input: SignUpInput) => http<Session>('/auth/signup', { method: 'POST', body: JSON.stringify(input) }),
+  login: (email: string, password: string) => http<Session>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  demo: (role: Role) => http<Session>('/auth/demo', { method: 'POST', body: JSON.stringify({ role }) }),
+  me: () => http<Account>('/auth/me'),
+  logout: () => http<void>('/auth/logout', { method: 'POST' }),
 };
 
 export const isMock = !BASE;

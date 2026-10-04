@@ -63,12 +63,12 @@ The UI finds a seller's own listings by comparing `abn` with the signed-in accou
 | `POST /listings/{id}/enquiries` | `{ "tonnesPerMonth": 30, "firstDelivery": "November 2026", "message": "..." }` | `{ "id": "...", "status": "sent" }` |
 | `POST /matches` | `MatchRequest` (below) | `MatchResult[]`, best first |
 | `POST /orders/plan` | `OrderPlanRequest` (below) | `OrderPlanResult` (below) |
-| `GET /orders` *(proposed)* | none; uses the signed-in account | `Order[]`, newest first: every order where the account is the buyer or the seller (below) |
-| `GET /collaborations` *(proposed, sellers)* | none; uses the signed-in account | `Collaboration[]` the account leads or was invited to (below) |
-| `POST /collaborations` *(proposed)* | `{ "requestId": "d09", "members": [{ "listingId": "s01", "tonnes": 25 }, { "listingId": "s02", "tonnes": 35 }], "message": "..." }` | created `Collaboration`. The caller is the lead; other members start as `invited` |
-| `POST /collaborations/{id}/respond` *(proposed)* | `{ "accept": true }` | updated `Collaboration` (the caller's member row becomes `accepted` or `declined`) |
-| `POST /collaborations/{id}/offer` *(proposed)* | none (lead only) | updated `Collaboration` with `status: "offer_sent"`; also creates a pending joint `Order` for the buyer |
-| `POST /collaborations/{id}/withdraw` *(proposed)* | none (lead only) | updated `Collaboration` with `status: "withdrawn"` |
+| `GET /orders` *(login)* | none; uses the signed-in account | `Order[]`, newest first: every order where the account is the buyer or the seller (below) |
+| `GET /collaborations` *(login, sellers)* | none; uses the signed-in account | `Collaboration[]` the account leads or was invited to (below) |
+| `POST /collaborations` *(login, sellers)* | `{ "requestId": "m51", "members": [{ "listingId": "p44", "tonnes": 25 }, { "listingId": "p57", "tonnes": 35 }], "message": "..." }` | `201` created `Collaboration`. The caller is the lead (with 0 tonnes when none of the listings is theirs); other members start as `invited`. Members must be supply listings of the request's material, never the buyer itself |
+| `POST /collaborations/{id}/respond` *(login, invited member)* | `{ "accept": true }` | updated `Collaboration` (the caller's member row becomes `accepted` or `declined`) |
+| `POST /collaborations/{id}/offer` *(login, lead)* | none | updated `Collaboration` with `status: "offer_sent"`; also creates a pending joint `Order`. `409` while anyone is still `invited` or nobody has committed tonnes |
+| `POST /collaborations/{id}/withdraw` *(login, lead)* | none (lead only) | updated `Collaboration` with `status: "withdrawn"` |
 | `GET /impact` | | `ImpactStats` (below) |
 | `POST /impact/report?refresh=true` | `refresh` optional: write a new one instead of the cached one | `ImpactReport` (below) |
 
@@ -196,10 +196,11 @@ Recycled share of metal input for the manufacturers on ResourceX, per year 2026â
 
 ### Verification, addresses
 
-- **Verified** means the business has an ABN on file. The UI treats a listing as verified when `verified` is true **or** `abn` is 11 digits (`lib/verify.ts`). Please set `verified: true` on every listing whose business has an ABN.
-- **Addresses:** listings and sites may now carry an optional street `address` and `postcode` alongside `suburb`, `state`, `lat` and `lng`. The UI geocodes the address in the browser (Photon / OpenStreetMap) and sends the pin's `lat`/`lng`. Store them if you can; ignoring them is fine.
+- **Verified** means the business has an ABN on file. The backend sets `verified: true` for every listing with an 11-digit ABN; the UI also treats any 11-digit `abn` as verified (`lib/verify.ts`).
+- **Addresses:** listings and sign-up sites carry an optional street `address` and 4-digit `postcode` alongside `suburb`, `state`, `lat` and `lng`. The UI geocodes the address in the browser (Photon / OpenStreetMap) and sends the pin's `lat`/`lng`; the backend stores both and returns them on listings.
+- **Logins:** with `VITE_API_URL` set, the UI signs in through `/auth/*` and sends `Authorization: Bearer <token>` on every call (`src/auth/serverAuth.ts`).
 
-### Order *(proposed)*
+### Order
 
 ```json
 {
@@ -215,9 +216,9 @@ Recycled share of metal input for the manufacturers on ResourceX, per year 2026â
 }
 ```
 
-`status` is `pending` (quote or offer sent, no reply yet), `confirmed`, `in_transit`, `delivered` or `cancelled`. `priceAud` and `freightAud` are per tonne. `co2eAvoidedT` is net of trucking, using the same factors as `/impact`. A quote request (`POST /listings/{id}/enquiries`) should create a `pending` order. The Orders page computes totals, monthly tonnes, material split and top partners from this list.
+`status` is `pending` (quote or offer sent, no reply yet), `confirmed`, `in_transit`, `delivered` or `cancelled`. `priceAud` and `freightAud` are per tonne. `co2eAvoidedT` is net of trucking, using the same factors as `/impact`. A signed-in quote request or offer (`POST /listings/{id}/enquiries` with a token) also creates a `pending` order for both parties. Ids are `o<n>` and `c<n>`; `ref` is `RX-<10000 + n>`. The Orders page computes totals, monthly tonnes, material split and top partners from this list.
 
-### Collaboration *(proposed)*
+### Collaboration
 
 Several sellers fill one buyer request together.
 

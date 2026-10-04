@@ -1,28 +1,31 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Search, X } from 'lucide-react';
-import type { Listing, MaterialKey, Site } from '../../api/types';
+import type { Listing, Site } from '../../api/types';
 import { ListingCard } from '../listings/ListingCard';
 import { Select } from '../ui/Select';
-import { MATERIALS } from '../../lib/materials';
 import { roadKm } from '../../lib/geo';
 import { rankListings } from '../../lib/ranking';
-import { tonnes } from '../../lib/format';
 
 type Sort = 'rank' | 'distance' | 'price' | 'volume';
 
 interface Props {
-  /** Suppliers that qualify and aren't in the order yet. */
+  /** Supply listings that can be added (not already in the order or team). */
   candidates: Listing[];
-  site: Site;
-  material: MaterialKey;
-  /** Tonnes a month still needed, for the header. */
-  shortT: number;
+  /** Where distances and rankings are measured from: the buyer's site, or the buyer request for a seller team. */
+  site: Pick<Site, 'lat' | 'lng'>;
+  /** "Add suppliers" (buyer order) or "Add partners" (seller team). */
+  title?: string;
+  noun?: { one: string; many: string };
+  /** Line under the title. */
+  intro: string;
+  /** Words after each card's distance, e.g. "to the buyer". */
+  distanceText?: string;
   onAdd: (ids: string[]) => void;
   onClose: () => void;
 }
 
-/** Pop-up list of suppliers to add to a combined order, in the same card style as the map's side list. */
-export function SupplierPicker({ candidates, site, material, shortT, onAdd, onClose }: Props) {
+/** Pop-up list of supply listings to add to a combined order or a seller team, in the same card style as the map's side list. */
+export function SupplierPicker({ candidates, site, title = 'Add suppliers', noun = { one: 'supplier', many: 'suppliers' }, intro, distanceText, onAdd, onClose }: Props) {
   const [picked, setPicked] = useState<string[]>([]);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<Sort>('rank');
@@ -58,11 +61,8 @@ export function SupplierPicker({ candidates, site, material, shortT, onAdd, onCl
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="sp-title" ref={dialog}>
         <header className="modal-head">
           <div>
-            <h2 id="sp-title">Add suppliers</h2>
-            <p className="hint">
-              {candidates.length} {MATERIALS[material].label.toLowerCase()} {candidates.length === 1 ? 'supplier matches' : 'suppliers match'} your grade and purity
-              {shortT > 0.5 ? ` · you still need ${tonnes(shortT)} a month` : ''}.
-            </p>
+            <h2 id="sp-title">{title}</h2>
+            <p className="hint">{intro}</p>
           </div>
           <button type="button" className="icon-btn" onClick={onClose} aria-label="Close"><X size={18} /></button>
         </header>
@@ -70,9 +70,9 @@ export function SupplierPicker({ candidates, site, material, shortT, onAdd, onCl
         <div className="modal-tools">
           <label className="field-search">
             <Search size={15} />
-            <input type="search" placeholder="Search by name or suburb" value={query} onChange={e => setQuery(e.target.value)} aria-label="Search suppliers" />
+            <input type="search" placeholder="Search by name or suburb" value={query} onChange={e => setQuery(e.target.value)} aria-label={`Search ${noun.many}`} />
           </label>
-          <Select<Sort> id="sp-sort" size="sm" prefix="Sort" aria-label="Sort suppliers" value={sort} onChange={setSort} options={[
+          <Select<Sort> id="sp-sort" size="sm" prefix="Sort" aria-label={`Sort ${noun.many}`} value={sort} onChange={setSort} options={[
             { value: 'rank', label: 'Best ranked' },
             { value: 'distance', label: 'Nearest' },
             { value: 'price', label: 'Cheapest' },
@@ -91,18 +91,19 @@ export function SupplierPicker({ candidates, site, material, shortT, onAdd, onCl
                 selected={on}
                 onOpen={() => toggle(l.id)}
                 actionLabel={on ? 'Selected. Press to remove' : 'Press to select'}
+                distanceText={distanceText}
                 trailing={<span className={`sel-box pick-box ${on ? 'on' : ''}`} aria-hidden="true">{on && <Check size={13} strokeWidth={3} />}</span>}
               />
             );
           })}
-          {shown.length === 0 && <div className="empty">{candidates.length ? 'No suppliers match your search.' : 'Every qualifying supplier is already in your order.'}</div>}
+          {shown.length === 0 && <div className="empty">{candidates.length ? `No ${noun.many} match your search.` : `Every qualifying ${noun.one} is already added.`}</div>}
         </div>
 
         <footer className="modal-foot">
-          <span className="hint">{picked.length ? `${picked.length} selected` : 'Select one or more suppliers'}</span>
+          <span className="hint">{picked.length ? `${picked.length} selected` : `Select one or more ${noun.many}`}</span>
           <button type="button" className="btn btn-ghost" onClick={onClose}>Cancel</button>
           <button type="button" className="btn btn-primary" disabled={!picked.length} onClick={() => onAdd(picked)}>
-            {picked.length ? `Add ${picked.length} ${picked.length === 1 ? 'supplier' : 'suppliers'}` : 'Add suppliers'}
+            {picked.length ? `Add ${picked.length} ${picked.length === 1 ? noun.one : noun.many}` : title}
           </button>
         </footer>
       </div>

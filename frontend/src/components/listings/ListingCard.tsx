@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { BadgeCheck, ChevronRight } from 'lucide-react';
+import { BadgeCheck, ChevronRight, CircleDollarSign, ClipboardList, Factory, Package, Route } from 'lucide-react';
 import type { ListingView } from '../../hooks/useListings';
 import type { Ranking } from '../../lib/ranking';
 import { MATERIALS } from '../../lib/materials';
@@ -18,10 +18,12 @@ interface Props {
   trailing?: ReactNode;
   /** Accessible action name; defaults to "Open details". */
   actionLabel?: string;
+  /** Words after the distance: "away" from your site, or e.g. "to the buyer". */
+  distanceText?: string;
 }
 
 /** Rail card: position and the listing's key stats in plain words. Full details live on the listing page. */
-export function ListingCard({ listing: l, ranking, hovered, selected, onOpen, onHover, trailing, actionLabel = 'Open details' }: Props) {
+export function ListingCard({ listing: l, ranking, hovered, selected, onOpen, onHover, trailing, actionLabel = 'Open details', distanceText = 'away' }: Props) {
   const m = MATERIALS[l.material];
 
   return (
@@ -48,10 +50,10 @@ export function ListingCard({ listing: l, ranking, hovered, selected, onOpen, on
         {trailing ?? <ChevronRight size={16} className="chev" aria-hidden="true" />}
       </div>
       <dl className="card-stats">
-        <div><dt>Material</dt><dd>{m.label}</dd></div>
-        <div><dt>{l.kind === 'supply' ? 'Production rate' : 'Quantity needed'}</dt><dd>{volume(l.tonnes, l.frequency)}</dd></div>
-        <div><dt>{l.kind === 'supply' ? 'Price' : 'Pays up to'}</dt><dd>{aud(l.priceAud)} per tonne</dd></div>
-        <div><dt>Distance</dt><dd>{fmtInt(l.distanceKm)} km away</dd></div>
+        <div><dt><Package size={12} aria-hidden="true" />Material</dt><dd>{m.label}</dd></div>
+        <div><dt>{l.kind === 'supply' ? <><Factory size={12} aria-hidden="true" />Production rate</> : <><ClipboardList size={12} aria-hidden="true" />Quantity needed</>}</dt><dd>{volume(l.tonnes, l.frequency)}</dd></div>
+        <div><dt><CircleDollarSign size={12} aria-hidden="true" />{l.kind === 'supply' ? 'Price' : 'Pays up to'}</dt><dd>{aud(l.priceAud)} per tonne</dd></div>
+        <div><dt><Route size={12} aria-hidden="true" />Distance</dt><dd>{fmtInt(l.distanceKm)} km {distanceText}</dd></div>
       </dl>
     </article>
   );
