@@ -196,7 +196,9 @@ def test_demo_logins(client):
 
 def test_listings_and_enquiries_with_login(client):
     new = {"material": "copper", "grade": "High quality", "form": "Granules", "tonnes": 10, "frequency": "Weekly", "priceAud": 7000}
+    copper_offered = lambda: next(b["offeredT"] for b in client.get("/impact").json()["byMaterial"] if b["material"] == "copper")  # noqa: E731
     token = client.post("/auth/signup", json=seller_signup()).json()["token"]
+    copper_before = copper_offered()
     created = client.post("/listings", json={**new, "company": "Someone Else", "abn": "99999999999"}, headers=auth_header(token))
     assert created.status_code == 201, created.text
     listing = created.json()
@@ -207,7 +209,8 @@ def test_listings_and_enquiries_with_login(client):
     sent = client.post(f"/listings/{listing['id']}/enquiries", json={"tonnesPerMonth": 5, "firstDelivery": "November 2026"},
                        headers=auth_header(token))
     assert sent.status_code == 201 and sent.json()["status"] == "sent"
-    assert client.get("/impact").json()["matchesConverted"] == 1
+    # The new listing counts towards the impact dashboard's supply straight away.
+    assert copper_offered() == pytest.approx(copper_before + listing["tonnes"], abs=0.1)
 
 
 def test_current_website_flow_without_login_still_works(client):

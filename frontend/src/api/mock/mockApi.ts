@@ -1,4 +1,4 @@
-import type { Enquiry, ImpactStats, Listing, ListingKind, MatchRequest, MatchResult, NewListing, OrderPlanRequest, OrderPlanResult, Site } from '../types';
+import type { Enquiry, ImpactReport, ImpactStats, Listing, ListingKind, MatchRequest, MatchResult, NewListing, OrderPlanRequest, OrderPlanResult, Site } from '../types';
 import type { Api } from '../client';
 import seed from './listings.json';
 import { baselineScore, scoreListing } from './scoring';
@@ -59,21 +59,69 @@ export const mockApi: Api = {
   },
 
   async getImpact(): Promise<ImpactStats> {
+    return wait(impactSample);
+  },
+
+  async getImpactReport(): Promise<ImpactReport> {
     return wait({
-      tonnesRecirculated: 14820,
-      co2eAvoidedT: 21460,
-      activeVerifiedSites: 212,
-      matchesConverted: 146,
-      byMaterial: [
-        { material: 'steel', tonnes: 7400 },
-        { material: 'paper', tonnes: 4100 },
-        { material: 'glass', tonnes: 1900 },
-        { material: 'aluminium', tonnes: 820 },
-        { material: 'plastics', tonnes: 410 },
-        { material: 'copper', tonnes: 160 },
-        { material: 'ewaste', tonnes: 30 },
+      headline: 'Demo mode: start the backend to see the projection from the NSW dataset.',
+      summary: [
+        'These are sample numbers. With VITE_API_URL pointing at the backend, this page shows the November 2026 projection from the NSW producers and manufacturers dataset, and Claude writes this report from those numbers.',
       ],
-      isSample: true,
-    });
+      highlights: [],
+      source: 'template',
+      model: null,
+      note: 'Demo mode: nothing left this browser.',
+      generatedAt: new Date().toISOString(),
+    }, 300);
+  },
+};
+
+// Shape-correct sample for demo mode. Mirrors the backend's response for the NSW dataset, rounded.
+const impactSample: ImpactStats = {
+  period: 'November 2026',
+  isSample: true,
+  tonnesRecirculated: 3800,
+  co2eAvoidedT: 15900,
+  transportCo2eT: 57,
+  landfillAvoidedT: 500,
+  moneySavedAud: 810000,
+  valueRecoveredAud: 3550000,
+  tonnesOffered: 3930,
+  tonnesRequested: 20800,
+  trades: 68,
+  producers: { total: 63, matched: 60 },
+  tenders: { total: 61, filled: 11, partial: 9 },
+  byMaterial: [
+    { material: 'aluminium', tonnes: 710, co2eAvoidedT: 10360, offeredT: 710, requestedT: 1590 },
+    { material: 'steel', tonnes: 2700, co2eAvoidedT: 4010, offeredT: 2700, requestedT: 18420 },
+    { material: 'alloys', tonnes: 205, co2eAvoidedT: 880, offeredT: 244, requestedT: 548 },
+    { material: 'copper', tonnes: 134, co2eAvoidedT: 430, offeredT: 196, requestedT: 150 },
+    { material: 'brass', tonnes: 70, co2eAvoidedT: 220, offeredT: 80, requestedT: 77 },
+  ],
+  circularity: {
+    globalRatePct: 6.9,
+    globalSource: 'Circularity Gap Report 2025 (Circle Economy)',
+    australiaRatePct: 4.3,
+    australiaSource: 'ABS Measuring What Matters, circular economy indicator (2024)',
+    australiaGoal: "Double the circularity rate by 2035 (Australia's Circular Economy Framework, 2024)",
+    goalPct: 15,
+    goal: 'COP31 Green Industrialisation: 15% global circular material use by 2035',
+  },
+  factors: [],
+  assumptions: ['Demo mode: sample numbers. Start the backend for the full method and sources.'],
+  outlook: {
+    metric: 'Recycled share of metal input for manufacturers on ResourceX',
+    years: [2026, 2027, 2028, 2029, 2030, 2031, 2032, 2033, 2034, 2035],
+    businessAsUsualPct: [32.9, 33.0, 33.1, 33.1, 33.2, 33.3, 33.4, 33.4, 33.5, 33.6],
+    scenarios: [
+      { key: 'conservative', label: 'Conservative', growthPct: 10, sharePct: [38.8, 39.5, 40.2, 41.0, 41.7, 42.3, 43.1, 43.9, 44.8, 45.7], extraTonnesPerYear2035: 91600, co2eAvoidedT: 2438000 },
+      { key: 'expected', label: 'Expected', growthPct: 25, sharePct: [38.8, 40.3, 42.1, 43.9, 46.0, 48.7, 48.9, 48.9, 48.9, 48.9], extraTonnesPerYear2035: 115700, co2eAvoidedT: 2901000 },
+      { key: 'ambitious', label: 'Ambitious', growthPct: 40, sharePct: [38.8, 41.2, 44.0, 47.3, 48.9, 48.9, 48.9, 48.9, 48.9, 48.9], extraTonnesPerYear2035: 115700, co2eAvoidedT: 3025000 },
+    ],
+    ceilingPct: 48.9,
+    metalInputTonnesPerMonth: 63155,
+    baselines: [],
+    assumptions: ['Demo mode: sample numbers. Start the backend for the full method and sources.'],
   },
 };

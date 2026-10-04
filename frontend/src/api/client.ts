@@ -1,6 +1,6 @@
 // Single entry point for all backend calls. Set VITE_API_URL to use the real API;
 // leave it empty to run on the built-in mock data. See API_CONTRACT.md.
-import type { Enquiry, ImpactStats, Listing, ListingKind, MatchRequest, MatchResult, NewListing, OrderPlanRequest, OrderPlanResult, Site } from './types';
+import type { Enquiry, ImpactReport, ImpactStats, Listing, ListingKind, MatchRequest, MatchResult, NewListing, OrderPlanRequest, OrderPlanResult, Site } from './types';
 import { mockApi } from './mock/mockApi';
 
 export interface Api {
@@ -11,6 +11,8 @@ export interface Api {
   planOrder(req: OrderPlanRequest): Promise<OrderPlanResult>;
   sendEnquiry(listingId: string, enquiry: Enquiry): Promise<{ id: string; status: 'sent' }>;
   getImpact(): Promise<ImpactStats>;
+  /** Writing the report can take ~30 s when Claude writes it. `refresh` asks for a new one. */
+  getImpactReport(refresh?: boolean): Promise<ImpactReport>;
 }
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? '';
@@ -38,6 +40,7 @@ const httpApi: Api = {
   sendEnquiry: (id, enquiry) =>
     http(`/listings/${encodeURIComponent(id)}/enquiries`, { method: 'POST', body: JSON.stringify(enquiry) }),
   getImpact: () => http('/impact'),
+  getImpactReport: refresh => http(`/impact/report${refresh ? '?refresh=true' : ''}`, { method: 'POST' }),
 };
 
 export const isMock = !BASE;

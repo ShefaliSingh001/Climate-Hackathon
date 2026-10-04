@@ -64,6 +64,44 @@ Every producer and manufacturer in the database takes part, including ones that 
 Not modelled: transport cost (the UI estimates freight separately), tax, and reserving stock across several
 tenders. "Any grade" passes every producer to the model with the same grade, so the grade check is skipped.
 
+## Impact dashboard
+
+`GET /impact` and `POST /impact/report` power the website's Impact page. Code: `app/impact.py` (this month),
+`app/forecast.py` (2035 outlook), `app/report.py` (AI report). Both read the producers and manufacturers tables, so
+new sign-ups count straight away. Only metals have sourced factors so far; other materials are left out and the
+response says how many.
+
+**This month.** There are no recorded trades yet, so `allocate()` projects them: tenders are filled in order-by date
+order from the cheapest eligible offers (same material, at least the requested grade, price within budget per tonne,
+not the buyer's own scrap) until supply runs out. Replace it with real trades or accepted matches later.
+
+| Measure | How | Source |
+| --- | --- | --- |
+| CO2e avoided | tonnes × material factor − trucking | steel 1.5 t/t (worldsteel), aluminium 14.6 (IAI 2022), copper 3.2 (ICA 2019 vs Aurubis recycled cathode), stainless/alloys 4.3 (Fraunhofer via worldstainless), brass 3.2 (copper as a proxy) |
+| Trucking | tonnes × road km × 0.0755 kg CO2e/t-km; road km = straight line × 1.25 | UK DESNZ 2024, articulated HGV, average laden |
+| Landfill avoided | tonnes × 13% | National Waste Report 2022: 87% of metal waste is recovered |
+| Money saved | (buyer's budget per tonne − price) × tonnes | marketplace data |
+
+**2035 outlook: recycled vs virgin metal.**
+
+- Each tender only covers the recycled part of a project. Assuming each manufacturer uses its industry's world
+  average recycled share today, its total metal use is tender ÷ share (about 63,000 tonnes a month for the 61).
+- Today and business as usual: steel 33% flat (IEA; BIR agrees once its 76% coverage is allowed for, and shows scrap
+  use flat since 2020), aluminium 29% rising to 50% by 2050 (IAI), copper 32% flat (ICA), brass as copper,
+  stainless 48% flat (worldstainless). Weighted by our mix: **32.9% today, 33.6% in 2035**.
+- With ResourceX: this month's matched scrap counts as extra recycled input (the information-gap assumption: without
+  the marketplace those buyers would have bought new metal). It grows 10%, 25% or 40% a year as more producers list,
+  never past each metal's evidence ceiling: steel 48% (IEA net-zero 2050), aluminium 50% (IAI), copper and brass 50%
+  (UCL's most optimistic 2050 case), stainless 85% (Europe today). **48.9% in 2035** in the expected case
+  (45.7–48.9% across scenarios), so virgin metal falls from 66% to 51%.
+- COP31's 15% goal covers all materials across the whole economy (6.9% today). Metals are already above it, so the
+  dashboard shows it only as context.
+
+**AI report.** Claude (`claude-opus-5-5`) writes the report from the `/impact` numbers only, with structured JSON
+output and the server-side refusal fallback. It needs `ANTHROPIC_API_KEY` (Vercel environment variable, or
+`backend/.env` locally); without it, or if the call fails, a template report built from the same numbers is returned.
+One report is cached per set of numbers; `?refresh=true` writes a new one.
+
 ## Accounts
 
 `POST /auth/signup` creates, in one transaction:

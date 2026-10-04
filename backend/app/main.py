@@ -19,7 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
-from . import auth, matching
+from . import auth, impact, matching, report
 from .db import DB, connect, integrity_errors, is_postgres
 from .listings import GRADE_LABELS, all_listings, get_listing, parse_id
 
@@ -36,9 +36,6 @@ MaterialKey = Literal["steel", "alloys", "aluminium", "copper", "brass", "plasti
 GradeKey = Literal["high", "medium", "short_use"]
 StateCode = Literal["NSW", "VIC", "QLD", "SA", "WA", "TAS", "ACT", "NT"]
 
-# Indicative t CO2e avoided per tonne recycled; same preview values as frontend/src/lib/materials.ts.
-CO2_PER_TONNE = {"copper": 3.0, "aluminium": 9.0, "paper": 0.7, "steel": 1.4, "plastics": 1.5, "ewaste": 2.0,
-                 "glass": 0.3, "brass": 2.5, "alloys": 2.0}
 PERIODS_PER_MONTH = {"Weekly": 52 / 12, "Fortnightly": 26 / 12, "Monthly": 1}
 
 
@@ -386,22 +383,24 @@ def plan_order(body: OrderPlanRequest):
 
 
 @app.get("/impact")
-def impact():
-    """Listed supply, not completed trades, so isSample stays true until trades are recorded."""
-    with connect() as db:
-        by_material = db.execute(
-            "select output_material as material, sum(output_quantity_t) as tonnes from producers "
-            "group by output_material order by tonnes desc").fetchall()
-        sites = db.execute("select count(distinct abn) as n from (select abn, legal_entity from producers "
-                           "union all select abn, legal_entity from manufacturers) as businesses "
-                           "where legal_entity is not null").fetchone()["n"]
-        enquiries = db.execute("select count(*) as n from enquiries").fetchone()["n"]
-    tonnes = sum(r["tonnes"] for r in by_material)
-    return {
-        "tonnesRecirculated": round(tonnes),
-        "co2eAvoidedT": round(sum(r["tonnes"] * CO2_PER_TONNE[r["material"]] for r in by_material)),
-        "activeVerifiedSites": sites,
-        "matchesConverted": enquiries,
-        "byMaterial": [{"material": r["material"], "tonnes": round(r["tonnes"])} for r in by_material],
-        "isSample": True,
-    }
+def impact_stats():
+    """This month's projected trades and the 2035 outlook, from the marketplace's producers and manufacturers.
+
+    Sourced factors and the method are in backend/app/impact.py and forecast.py. isSample stays true while the
+    demo dataset is in use.
+    """
+    return impact.impact_for(*impact.load_marketplace())
+
+
+# One report per set of numbers: it only changes when the marketplace data does.
+_reports: dict[str, dict] = {}
+
+
+@app.post("/impact/report")
+def impact_report(refresh: bool = False):
+    """Plain-language monthly report written by Claude from the /impact numbers (a template without an API key)."""
+    stats = impact_stats()
+    key = json.dumps(stats, sort_keys=True, default=str)
+    if refresh or key not in _reports or _reports[key]["source"] != "claude":
+        _reports[key] = {**report.write_report(stats), "generatedAt": dt.datetime.now(dt.timezone.utc).isoformat()}
+    return _reports[key]
