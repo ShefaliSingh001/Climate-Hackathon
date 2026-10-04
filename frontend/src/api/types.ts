@@ -226,3 +226,85 @@ export interface ImpactReport {
   note: string | null;
   generatedAt: string;
 }
+
+// ---------------------------------------------------------------------------
+// Orders and seller collaborations (GET /orders, /collaborations). See API_CONTRACT.md.
+// ---------------------------------------------------------------------------
+
+/** pending = quote or offer sent, waiting for the other side. */
+export type OrderStatus = 'pending' | 'confirmed' | 'in_transit' | 'delivered' | 'cancelled';
+
+export interface OrderParty {
+  company: string;
+  suburb: string;
+  state: StateCode;
+}
+
+/** One delivery agreement between a buyer and a seller. The signed-in account is one of the two. */
+export interface Order {
+  id: string;
+  /** Short reference shown to people, e.g. "RX-10482". */
+  ref: string;
+  /** Listing the order came from, when it still exists. */
+  listingId: string | null;
+  material: MaterialKey;
+  grade: string;
+  buyer: OrderParty;
+  seller: OrderParty;
+  tonnes: number;
+  /** Material price, A$ per tonne. */
+  priceAud: number;
+  /** Freight, A$ per tonne. */
+  freightAud: number;
+  distanceKm: number;
+  status: OrderStatus;
+  /** ISO dates. */
+  placedAt: string;
+  deliveryDate: string;
+  /** Tonnes CO2e avoided against newly sourced material, net of trucking. */
+  co2eAvoidedT: number;
+  /** Set when the seller side is a team of sellers (see Collaboration). */
+  collaborationId?: string | null;
+  partners?: string[];
+}
+
+export type MemberStatus = 'lead' | 'invited' | 'accepted' | 'declined';
+
+export interface CollaborationMember {
+  company: string;
+  suburb: string;
+  state: StateCode;
+  abn: string | null;
+  listingId: string | null;
+  /** Tonnes a month this member supplies. */
+  tonnes: number;
+  /** Member's material price, A$ per tonne. */
+  priceAud: number;
+  /** Road km from the member's yard to the buyer. */
+  distanceKm: number;
+  status: MemberStatus;
+}
+
+/** forming = invites out; offer_sent = joint offer sent to the buyer; withdrawn = the lead cancelled it. */
+export type CollaborationStatus = 'forming' | 'offer_sent' | 'withdrawn';
+
+/** Several sellers teaming up to fill one buyer request that is too big for any one of them. */
+export interface Collaboration {
+  id: string;
+  requestId: string;
+  buyer: OrderParty;
+  material: MaterialKey;
+  /** Tonnes a month the buyer wants, and the most they pay per tonne. */
+  tonnesNeeded: number;
+  maxPriceAud: number;
+  members: CollaborationMember[];
+  status: CollaborationStatus;
+  message: string;
+  createdAt: string;
+}
+
+export interface NewCollaboration {
+  requestId: string;
+  members: { listingId: string; tonnes: number }[];
+  message: string;
+}

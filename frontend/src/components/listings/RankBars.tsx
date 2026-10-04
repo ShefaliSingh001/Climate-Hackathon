@@ -6,7 +6,6 @@ interface Props {
   of: number;
   /** Buyer requests rank price the other way round (higher offer is better). */
   kind?: 'supply' | 'demand';
-  compact?: boolean;
 }
 
 const BEST: Record<Factor, { supply: string; demand: string }> = {
@@ -17,9 +16,9 @@ const BEST: Record<Factor, { supply: string; demand: string }> = {
 };
 
 /** Four relative bars, each labelled with the listing's position on that factor ("2nd nearest"). */
-export function RankBars({ factors, of, kind = 'supply', compact }: Props) {
+export function RankBars({ factors, of, kind = 'supply' }: Props) {
   return (
-    <div className={`rank-bars${compact ? ' compact' : ''}`}>
+    <div className="rank-bars">
       {FACTORS.map(f => {
         const r = factors[f.key];
         const title = `${ordinal(r.position)} of ${of} for ${BEST[f.key][kind]}`;

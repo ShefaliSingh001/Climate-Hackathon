@@ -12,11 +12,14 @@ const NAV = {
   buyer: [
     { to: '/marketplace', label: 'Supply map' },
     { to: '/sourcing', label: 'Sourcing' },
+    { to: '/orders', label: 'Orders' },
     { to: '/impact', label: 'Impact' },
   ],
   seller: [
     { to: '/marketplace', label: 'Buyer requests' },
     { to: '/my-listings', label: 'My listings' },
+    { to: '/collaborations', label: 'Collaborations' },
+    { to: '/orders', label: 'Orders' },
     { to: '/impact', label: 'Impact' },
   ],
 };

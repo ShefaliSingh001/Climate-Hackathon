@@ -22,7 +22,7 @@ ResourceX ("Materials in motion"). Use `components/brand/Logo.tsx` for the logo,
 
 ## Accounts and roles
 
-Read `AUTH.md`. Buyers see supply, `/sourcing` and Impact; sellers see buyer requests, `/my-listings`, `/sell/new` and Impact. Use `useAuth()` for the account and `useSite()` for the signed-in site (never `HOME_SITE` directly). Guard new pages with `RequireAuth` (optionally `role`).
+Read `AUTH.md`. Buyers see supply, `/sourcing`, `/orders` and Impact; sellers see buyer requests, `/my-listings`, `/sell/new`, `/collaborations`, `/orders` and Impact. Use `useAuth()` for the account and `useSite()` for the signed-in site (never `HOME_SITE` directly). Guard new pages with `RequireAuth` (optionally `role`).
 
 ## Stack
 
@@ -33,18 +33,21 @@ React 19, Vite, TypeScript (strict), react-router, Leaflet via react-leaflet, zu
 ```
 src/
   api/          types.ts (shared shapes), client.ts (mock vs real switch on VITE_API_URL)
-    mock/       listings.json (sample AU listings), mockApi.ts, scoring.ts (stand-in for the AI model)
+    mock/       listings.json (sample AU listings), mockApi.ts, scoring.ts (stand-in for the AI model),
+                orders.ts (sample order history per demo account), collaborations.ts (seller teams, stored in the browser)
   auth/         types.ts (Role, Account, AuthClient), mockAuth.ts (demo accounts, browser storage), AuthProvider.tsx (useAuth, useSite, RequireAuth)
   components/
     brand/      Logo (mark + live wordmark), DotField (animated dot-wave canvas)
     home/       nswMap.ts (pre-projected NSW outline + sample pins for the homepage),
                 motion.tsx (Reveal, CountUp, useScrollFx: homepage scroll effects)
     layout/     TopBar (role-based nav, search, account menu with Settings and a theme toggle)
-    listings/   FilterBar (state, materials, sort, distance), ListingCard (rail card: position + RankBars),
-                RankBars (Material / Distance / Price / Reliability bars labelled with positions),
+    collab/     TeamUpPlanner (seller view of a buyer request: combine your supply with other recyclers, invite them)
+    listings/   FilterBar (state, materials, sort, distance), ListingCard (rail card: position + Material / Production rate / Price / Distance),
+                RankBars (Material / Distance / Price / Reliability bars labelled with positions; Sourcing only),
                 LogisticsEstimate (freight + landed cost), EnquiryForm
     map/        MarketMap (pins, state outline, radius, controls), LayerSwitcher, layers.ts (tile sources),
                 RouteMap (your site + partners, animated road routes via lib/routing.ts, dashed line fallback)
+    orders/     MonthlyChart (single-series columns with hover tooltip)
     sourcing/   CombinePlanner (split one demand across several suppliers, editable)
     ui/         CircularityChart, Select (custom accessible dropdown; use it, never a native <select>),
                 NumberField (text-based number input that can be cleared; use it, never type="number"),
@@ -56,7 +59,8 @@ src/
                 ranking.ts (positions per factor, no scores), routing.ts (OSRM road routes),
                 sourcing.ts (multi-supplier order planner)
   pages/        Home (/), Auth (Login, Signup), Marketplace (/marketplace), ListingDetail (/listing/:id),
-                Matches (/sourcing, ranked + combine), MyListings, SellNew, Impact, Settings (/settings)
+                Matches (/sourcing, ranked + combine), MyListings, SellNew, Impact, Settings (/settings),
+                Orders (/orders, both roles), Collaborations (/collaborations, sellers)
   state/        store.ts (zustand: mode, region, filters, hovered pin, map layer; defaults come from settings),
                 settings.ts (useSettings: theme, motion, map defaults, notifications; saved in localStorage)
   styles/       tokens.css (all colours, light + dark), app.css (app component styles, sectioned), home.css (homepage)

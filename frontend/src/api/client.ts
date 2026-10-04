@@ -1,6 +1,6 @@
 // Single entry point for all backend calls. Set VITE_API_URL to use the real API;
 // leave it empty to run on the built-in mock data. See API_CONTRACT.md.
-import type { Enquiry, ImpactReport, ImpactStats, Listing, ListingKind, MatchRequest, MatchResult, NewListing, OrderPlanRequest, OrderPlanResult, Site } from './types';
+import type { Collaboration, Enquiry, ImpactReport, ImpactStats, Listing, ListingKind, MatchRequest, MatchResult, NewCollaboration, NewListing, Order, OrderPlanRequest, OrderPlanResult, Site } from './types';
 import { mockApi } from './mock/mockApi';
 
 export interface Api {
@@ -13,6 +13,15 @@ export interface Api {
   getImpact(): Promise<ImpactStats>;
   /** Writing the report can take ~30 s when Claude writes it. `refresh` asks for a new one. */
   getImpactReport(refresh?: boolean): Promise<ImpactReport>;
+  /** The signed-in account's orders, as buyer or seller, newest first. */
+  listOrders(): Promise<Order[]>;
+  /** Seller collaborations the signed-in account leads or was invited to. */
+  listCollaborations(): Promise<Collaboration[]>;
+  createCollaboration(input: NewCollaboration): Promise<Collaboration>;
+  respondToCollaboration(id: string, accept: boolean): Promise<Collaboration>;
+  withdrawCollaboration(id: string): Promise<Collaboration>;
+  /** The lead sends the team's joint offer to the buyer. */
+  sendJointOffer(id: string): Promise<Collaboration>;
 }
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ?? '';
@@ -41,6 +50,13 @@ const httpApi: Api = {
     http(`/listings/${encodeURIComponent(id)}/enquiries`, { method: 'POST', body: JSON.stringify(enquiry) }),
   getImpact: () => http('/impact'),
   getImpactReport: refresh => http(`/impact/report${refresh ? '?refresh=true' : ''}`, { method: 'POST' }),
+  listOrders: () => http('/orders'),
+  listCollaborations: () => http('/collaborations'),
+  createCollaboration: input => http('/collaborations', { method: 'POST', body: JSON.stringify(input) }),
+  respondToCollaboration: (id, accept) =>
+    http(`/collaborations/${encodeURIComponent(id)}/respond`, { method: 'POST', body: JSON.stringify({ accept }) }),
+  withdrawCollaboration: id => http(`/collaborations/${encodeURIComponent(id)}/withdraw`, { method: 'POST' }),
+  sendJointOffer: id => http(`/collaborations/${encodeURIComponent(id)}/offer`, { method: 'POST' }),
 };
 
 export const isMock = !BASE;

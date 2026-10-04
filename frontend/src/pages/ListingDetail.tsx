@@ -1,6 +1,6 @@
-import type { CSSProperties } from 'react';
+import { useEffect, type CSSProperties } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import { ArrowLeft, BadgeCheck, Clock, Layers3, Leaf, MapPin, Trophy } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Clock, Handshake, Layers3, Leaf, MapPin, Trophy } from 'lucide-react';
 import type { Listing, Site } from '../api/types';
 import { useRoute } from '../hooks/useRoute';
 import { api } from '../api/client';
@@ -12,6 +12,7 @@ import { PRICE_NOTE, aud, belowNew, driveTime, fmtInt, monthlyTonnes, tonnes, vo
 import { RouteMap } from '../components/map/RouteMap';
 import { LogisticsEstimate } from '../components/listings/LogisticsEstimate';
 import { EnquiryForm } from '../components/listings/EnquiryForm';
+import { TeamUpPlanner } from '../components/collab/TeamUpPlanner';
 
 export function ListingDetail() {
   const { id = '' } = useParams();
@@ -50,7 +51,14 @@ export function ListingDetail() {
 interface RankState { rank?: { position: number; of: number } }
 
 function ListingBody({ l, own, site: HOME_SITE }: { l: Listing; own: boolean; site: Site }) {
-  const rank = (useLocation().state as RankState | null)?.rank;
+  const location = useLocation();
+  const rank = (location.state as RankState | null)?.rank;
+  // Links like /listing/d06#team-up or #enquiry jump to that panel once it has rendered.
+  useEffect(() => {
+    if (!location.hash) return;
+    const t = setTimeout(() => document.getElementById(location.hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
+    return () => clearTimeout(t);
+  }, [location.hash, l.id]);
   const { route } = useRoute(HOME_SITE, l);
   const m = MATERIALS[l.material];
   const isSupply = l.kind === 'supply';
@@ -79,6 +87,7 @@ function ListingBody({ l, own, site: HOME_SITE }: { l: Listing; own: boolean; si
             {isSupply && !own && (
               <Link className="btn btn-ghost" to={`/sourcing?tab=combine&material=${l.material}`}><Layers3 size={16} />Combine with other suppliers</Link>
             )}
+            {!isSupply && !own && <a className="btn btn-ghost" href="#team-up"><Handshake size={16} />Team up with other recyclers</a>}
           </div>
         </header>
 
@@ -88,6 +97,8 @@ function ListingBody({ l, own, site: HOME_SITE }: { l: Listing; own: boolean; si
           <div className="kpi"><dt>{isSupply ? 'Purity' : 'Minimum purity'}</dt><dd>{l.purity != null ? `${l.purity}%` : 'On request'}<small>{l.grade}</small></dd></div>
           <div className="kpi"><dt>Emissions avoided</dt><dd>{tonnes(monthly * m.co2PerTonne)}<small>of <abbr title="carbon dioxide equivalent">CO₂e</abbr> per month at full volume</small></dd></div>
         </dl>
+
+        {!isSupply && !own && <TeamUpPlanner request={l} />}
 
         <div className="detail-grid">
           <div className="stack">

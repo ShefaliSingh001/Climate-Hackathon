@@ -4,7 +4,6 @@ import type { ListingView } from '../../hooks/useListings';
 import type { Ranking } from '../../lib/ranking';
 import { MATERIALS } from '../../lib/materials';
 import { aud, fmtInt, volume } from '../../lib/format';
-import { RankBars } from './RankBars';
 
 interface Props {
   listing: ListingView;
@@ -14,7 +13,7 @@ interface Props {
   onHover: (on: boolean) => void;
 }
 
-/** Rail card: position, key facts in plain words, and the ranking breakdown. Full details live on the listing page. */
+/** Rail card: position and the listing's key stats in plain words. Full details live on the listing page. */
 export function ListingCard({ listing: l, ranking, hovered, onOpen, onHover }: Props) {
   const m = MATERIALS[l.material];
 
@@ -36,18 +35,16 @@ export function ListingCard({ listing: l, ranking, hovered, onOpen, onHover }: P
             <span className={`code small${l.kind === 'supply' ? '' : ' square'}`} style={{ '--c': m.color } as CSSProperties} title={m.label} aria-label={m.label}>{m.code}</span>
             {l.company}{l.verified && <span className="verified" title="Verified site and licences"><BadgeCheck size={15} /></span>}
           </h3>
-          <p className="card-line">
-            <span>{m.label}</span>
-            <span>{volume(l.tonnes, l.frequency)}</span>
-          </p>
-          <p className="card-line">
-            <span>{aud(l.priceAud)} per tonne</span>
-            <span>{fmtInt(l.distanceKm)} km away</span>
-          </p>
+          <p className="card-sub">{l.suburb}, {l.state}</p>
         </div>
         <ChevronRight size={16} className="chev" aria-hidden="true" />
       </div>
-      {ranking && <RankBars factors={ranking.factors} of={ranking.of} kind={l.kind} compact />}
+      <dl className="card-stats">
+        <div><dt>Material</dt><dd>{m.label}</dd></div>
+        <div><dt>{l.kind === 'supply' ? 'Production rate' : 'Quantity needed'}</dt><dd>{volume(l.tonnes, l.frequency)}</dd></div>
+        <div><dt>{l.kind === 'supply' ? 'Price' : 'Pays up to'}</dt><dd>{aud(l.priceAud)} per tonne</dd></div>
+        <div><dt>Distance</dt><dd>{fmtInt(l.distanceKm)} km away</dd></div>
+      </dl>
     </article>
   );
 }

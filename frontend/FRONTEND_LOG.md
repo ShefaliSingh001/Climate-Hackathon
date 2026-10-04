@@ -5,6 +5,47 @@ Anyone (or any Claude session) picking up the frontend should read this before s
 
 ---
 
+## 2026-10-04: Orders dashboard, seller collaborations, stats on map cards
+
+**What**
+- **Map side panel:** each card now shows the listing's stats in plain words in a 2 × 2 grid, instead of the ranking bars: Material, Production rate (buyer requests: Quantity needed), Price (buyer requests: Pays up to) and Distance. The #position badge stays, and the suburb sits under the name. Reliability is gone from the cards. `RankBars` is now used only on Sourcing.
+- **Orders** (`/orders`, both roles, in the top nav), a dashboard:
+  - KPIs against the previous period: spent (buyers, including freight) or sales (sellers), tonnes, number of orders, emissions avoided.
+  - A tonnes-per-month column chart with hover and focus tooltips.
+  - Tonnes by material, top suppliers or buyers, and in-progress orders with a status stepper (Requested, Confirmed, In transit, Delivered).
+  - A searchable order table with tabs (All, Active, Delivered, Cancelled). Rows expand to show dates, price, freight, distance, emissions, joint-order partners, and View listing or Order again.
+  - The period picker offers 3, 6 or 12 months.
+- **Collaborations** (`/collaborations`, sellers): recyclers team up on buyer requests that are too big for one yard.
+  - **Starting a team:** a buyer request page now has a "Team up with other recyclers" planner (`components/collab/TeamUpPlanner.tsx`):
+    - your own supply plus the nearest suppliers of the same material, with editable tonnes and "Suggest partners";
+    - a coverage meter, average price against the buyer's limit, and delivered price with freight;
+    - an "Invite partners" button.
+  - **The page:** tabs for invites for you (Accept / Decline), teams you lead (send the joint offer once partners reply, or Withdraw), and requests for your materials (shows when a request needs more than you list).
+  - **Joint offers** appear in Orders as pending joint orders.
+- **Demo data:**
+  - Demo accounts get 24 months of sample orders (`api/mock/orders.ts`, seeded so they're stable).
+  - Quote requests, offers and joint offers made in the browser are added to Orders.
+  - The demo seller starts with two invites from other recyclers, and partners invited in demo mode accept after about 8 seconds.
+  - New buyer request `d09`: Westlink Cable Co. needs 60 tonnes of copper a month, more than any single yard lists.
+- **API:** `listOrders`, `listCollaborations`, `createCollaboration`, `respondToCollaboration`, `withdrawCollaboration` and `sendJointOffer` were added to `api/client.ts`, with the proposed endpoints in `API_CONTRACT.md` (`GET /orders`, `/collaborations…`).
+
+**Files**
+- New:
+  - `pages/Orders.tsx`, `pages/Collaborations.tsx`
+  - `components/orders/MonthlyChart.tsx`, `components/collab/TeamUpPlanner.tsx`
+  - `api/mock/orders.ts`, `api/mock/collaborations.ts`
+- Changed:
+  - API: `api/types.ts`, `api/client.ts`, `api/mock/mockApi.ts`, `api/mock/listings.json`
+  - Pages and components: `ListingCard`, `RankBars`, `ListingDetail`, `TopBar`, `App.tsx`
+  - Other: `lib/format.ts` (`shortDate`, `monthName`, `audBig`), `styles/app.css`
+  - Docs: `README.md`, `CLAUDE.md`
+
+**Open items for the backend**
+- Build `GET /orders` and the collaboration endpoints, or tell the frontend to adapt. In API mode the Orders and Collaborations pages call them directly, so they show an error until they exist.
+- A quote request (`POST /listings/{id}/enquiries`) should create a pending order.
+
+---
+
 ## 2026-10-04: Homepage merge, zoomed map, unique rankings, settings and state picker tidy-up
 
 **What**
