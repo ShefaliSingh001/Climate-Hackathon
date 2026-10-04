@@ -5,6 +5,33 @@ Anyone (or any Claude session) picking up the frontend should read this before s
 
 ---
 
+## 2026-10-04: Homepage merge, zoomed map, unique rankings, settings and state picker tidy-up
+
+**What**
+- **Homepage:**
+  - The problem section has no photo now. The heading and intro sit on the left and the three facts on the right; the third fact is "600 km" instead of "$ per tonne".
+  - "How it works" and "The platform" are merged into one "How it works" section:
+    - three numbered steps (List, Match, Deliver), each with its photo and two platform features;
+    - the sample map card is sticky beside them, with the combined order shown below the map instead of over it.
+  - The nav reads The problem · How it works · Who it's for · Impact.
+- **Homepage map:** zoomed into Greater Sydney, the Hunter and the Illawarra (`VIEW` in `pages/Home.tsx` crops and scales the `nswMap.ts` coordinates), so suppliers no longer pile up in one spot.
+  - Out-of-view pins are hidden.
+  - Pins stay a fixed size and the outline uses a non-scaling stroke.
+  - City labels have a halo, and there is a Tasman Sea label and a 50 km scale bar.
+  - The routes now come from Hunter (Kooragang), Smithfield and Illawarra (Port Kembla). The sample order is 25 + 23 + 12 = 60 tonnes, at $12,780 per tonne delivered.
+- **Rankings:** positions are unique, 1, 2, 3… with no shared places (`positions()` in `lib/ranking.ts`).
+  - Overall ties go to the nearer listing.
+  - Ties on a single factor go to the better overall position.
+  - On Sourcing, a tie goes to the higher-ranked row.
+- **Settings:** "Reset demo data" is removed, along with the settings store's unused `reset()`.
+- **State picker:** "All of Australia" is first in `REGIONS`, ahead of NSW. NSW is still the default.
+- **Removed:** `public/images/scrap-yard.webp` and its credit, and the parallax code in `components/home/motion.tsx` (it was only used by that photo).
+
+**Files**
+- `pages/Home.tsx`, `styles/home.css`, `components/home/motion.tsx`, `lib/ranking.ts`, `lib/regions.ts`, `pages/Settings.tsx`, `state/settings.ts`, `styles/app.css`, `public/images/CREDITS.md`.
+
+---
+
 ## 2026-10-04: New impact dashboard (2035 recycled vs virgin) + AI monthly report
 
 **What**

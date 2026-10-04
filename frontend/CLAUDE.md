@@ -69,7 +69,7 @@ src/
 - Material colours were checked for colour-blind separation; pins also show a short code (Cu, Al, Fe…) so colour is never the only signal. Supply listings are round pins, buyer requests are square.
 - Plain language for non-technical users: no unit abbreviations in the UI. Write "25 tonnes per fortnight", "$13,050 per tonne" with the helpers in `lib/format.ts` (never "t", "t/fn", "A$/t", "mo"). Show `PRICE_NOTE` (AUD, excluding GST) once per page instead of "A$". "km" is fine. Wrap CO₂e in `<abbr title="carbon dioxide equivalent">` where space allows. Australian spelling.
 - Say "newly sourced" materials, never "virgin", in UI copy (API field names like `virginPriceAud` stay).
-- No match scores in the UI. Show positions ("#2 of 18", "1st nearest") from `lib/ranking.ts`; scores only decide the order.
+- No match scores in the UI. Show positions ("#2 of 18", "1st nearest") from `lib/ranking.ts`; scores only decide the order. Positions are always unique (1, 2, 3…); ties are broken, never shared.
 - Theme: `data-theme` on `<html>` (light/dark, absent = follow the device), set by `state/settings.ts` and by the inline script in `index.html` before first paint. Only use tokens so both themes work.
 - Motion: keep it subtle (transform/opacity, 0.5–0.9 s, one easing). Every animation must stop under `prefers-reduced-motion` **and** `:root[data-motion="reduced"]` (Settings → Reduce animations); in JS check `prefersReducedMotion()` from `state/settings.ts`.
 - Anything not real data is labelled: "Sample" badges on the impact page, "Demo mode" notes when the mock API is active.

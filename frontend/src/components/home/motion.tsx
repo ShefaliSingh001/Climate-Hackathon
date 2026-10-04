@@ -1,4 +1,4 @@
-// Scroll motion for the homepage: reveals, count-ups, a light parallax and the nav's scroll state.
+// Scroll motion for the homepage: reveals, count-ups and the nav's scroll state.
 // Everything is transform/opacity only, runs once, and is skipped when motion is reduced
 // (device setting or Settings → Reduce animations). Content is always visible without JS.
 import { createElement, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
@@ -27,7 +27,7 @@ interface RevealProps {
   children: ReactNode;
   className?: string;
   id?: string;
-  as?: 'div' | 'ul';
+  as?: 'div' | 'ul' | 'li';
   variant?: Variant;
   /** ms before this block starts. */
   delay?: number;
@@ -76,7 +76,6 @@ export function CountUp({ value, decimals = 0, prefix = '', suffix = '', duratio
  * Page-level scroll effects, one rAF-throttled listener:
  * - `scrolled` once the page moves (nav turns solid),
  * - `--progress` (0–1) on the nav for the reading bar,
- * - `--py` on [data-parallax] elements (a few px of drift),
  * - the id of the section in view, for the nav's active link.
  */
 export function useScrollFx(navRef: React.RefObject<HTMLElement | null>, sectionIds: string[]) {
@@ -85,21 +84,12 @@ export function useScrollFx(navRef: React.RefObject<HTMLElement | null>, section
 
   useEffect(() => {
     let frame = 0;
-    const reduced = prefersReducedMotion();
-    const parallax = Array.from(document.querySelectorAll<HTMLElement>('[data-parallax]'));
     const update = () => {
       frame = 0;
       const y = window.scrollY;
       const max = document.documentElement.scrollHeight - window.innerHeight;
       setScrolled(y > 24);
       navRef.current?.style.setProperty('--progress', String(max > 0 ? Math.min(1, y / max) : 0));
-      if (!reduced) {
-        for (const el of parallax) {
-          const r = el.getBoundingClientRect();
-          const centre = Math.max(-1, Math.min(1, (r.top + r.height / 2 - window.innerHeight / 2) / window.innerHeight)); // -1…1 around the viewport centre
-          el.style.setProperty('--py', `${(centre * -Number(el.dataset.parallax || 24)).toFixed(1)}px`);
-        }
-      }
     };
     const onScroll = () => { if (!frame) frame = requestAnimationFrame(update); };
     update();

@@ -531,8 +531,6 @@ h3.sub { font-size: 12.5px; font-weight: 600; margin: 16px 0 8px; }
 .settings-spec dt { color: var(--ink-3); }
 .settings-spec dd { margin: 0; color: var(--ink); min-width: 0; overflow-wrap: anywhere; }
 .settings-actions { display: flex; gap: 10px; flex-wrap: wrap; padding-top: 12px; margin-top: 4px; border-top: 1px solid var(--line); }
-.btn-ghost.danger { color: var(--danger); }
-.btn-ghost.danger:hover { border-color: var(--danger); }
 @media (max-width: 820px) {
   .settings-row, .settings-spec > div { grid-template-columns: 1fr; gap: 8px; }
   .theme-pick { grid-template-columns: 1fr 1fr 1fr; gap: 6px; }

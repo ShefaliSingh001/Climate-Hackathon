@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Check, LogOut, Map as MapIcon, Monitor, Moon, Palette, RotateCcw, Sun, UserRound } from 'lucide-react';
+import { Bell, Check, LogOut, Map as MapIcon, Monitor, Moon, Palette, Sun, UserRound } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
 import { LAYERS, LAYER_KEYS } from '../components/map/layers';
 import { Select } from '../components/ui/Select';
@@ -51,13 +51,6 @@ export function Settings() {
   const market = useMarket();
 
   const setMapLayer = (k: typeof s.mapLayer) => { s.update({ mapLayer: k }); market.set({ layer: k }); };
-
-  function resetDemo() {
-    if (!window.confirm('Reset demo data? This removes listings you created in this browser and restores the default settings.')) return;
-    try { localStorage.removeItem('resourcex.createdListings'); } catch { /* ignore */ }
-    s.reset();
-    window.location.reload();
-  }
 
   return (
     <main className="page">
@@ -127,7 +120,6 @@ export function Settings() {
             </dl>
             <div className="settings-actions">
               <button type="button" className="btn btn-ghost" onClick={async () => { await signOut(); navigate('/'); }}><LogOut size={15} />Sign out</button>
-              <button type="button" className="btn btn-ghost danger" onClick={resetDemo}><RotateCcw size={15} />Reset demo data</button>
             </div>
           </Section>
         )}

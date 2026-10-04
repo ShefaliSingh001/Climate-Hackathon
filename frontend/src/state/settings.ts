@@ -55,7 +55,6 @@ export function prefersReducedMotion() {
 
 interface SettingsState extends Settings {
   update: (patch: Partial<Settings>) => void;
-  reset: () => void;
 }
 
 const pick = ({ theme, motion, mapLayer, region, radiusKm, notifications }: Settings): Settings =>
@@ -69,10 +68,5 @@ export const useSettings = create<SettingsState>((set, get) => ({
     const next = pick(get());
     save(next);
     applySettings(next);
-  },
-  reset: () => {
-    set(DEFAULT_SETTINGS);
-    try { localStorage.removeItem(SETTINGS_KEY); } catch { /* ignore */ }
-    applySettings(DEFAULT_SETTINGS);
   },
 }));
