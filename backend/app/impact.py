@@ -136,14 +136,14 @@ def eligible(producer: dict, manufacturer: dict) -> bool:
 
 
 def allocate(producers: list[dict], manufacturers: list[dict]) -> list[Trade]:
-    """Fill tenders in order-by date order, cheapest eligible offer first, until supply runs out.
+    """Fill tenders from the cheapest eligible offers until supply runs out.
 
-    The dataset's tenders are alternatives that compete for the same supply, so each producer's
-    tonnes can only be sold once.
+    Buyers who pay most per tonne go first: that is reuse of good offcuts before melting, as in a real market (and
+    the waste hierarchy). Ties go to the earlier order-by date. Each producer's tonnes can only be sold once.
     """
     remaining = [p["output_quantity_t"] for p in producers]
     trades: list[Trade] = []
-    for m in sorted(manufacturers, key=lambda m: (m["order_by"], m["name"])):
+    for m in sorted(manufacturers, key=lambda m: (-m["max_price_aud_per_t"], m["order_by"], m["name"])):
         need = m["required_quantity_t"]
         candidates = [i for i, p in enumerate(producers) if remaining[i] > 0 and eligible(p, m)]
         candidates.sort(key=lambda i: (producers[i]["price_aud_per_t"],
@@ -222,8 +222,9 @@ def summarise(trades: list[Trade], producers: list[dict], manufacturers: list[di
             for k, f in EMISSION_FACTORS.items()
         ],
         "assumptions": [
-            "Projected from the NSW demo dataset: each tender is filled from the cheapest eligible offers "
-            "(same material, at least the requested grade, within budget) until supply runs out.",
+            "Projected from the NSW dataset (real companies; tonnages and prices modelled from October 2026 market "
+            "data): buyers paying most per tonne (offcut reuse) go first, each filled from the cheapest eligible "
+            "offers (same material, at least the requested grade, within budget) until supply runs out.",
             f"CO2e avoided is net of trucking: {TRUCK_SOURCE}; road distance = straight line x {ROAD_FACTOR}.",
             *([f"{len(estimated)} of {len(trades)} trades assume a {DEFAULT_ROAD_KM:.0f} km haul because a site "
                "has no coordinates yet."] if estimated else []),

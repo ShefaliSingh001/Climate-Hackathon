@@ -170,7 +170,7 @@ Served by the backend now (`backend/app/impact.py`, `forecast.py`) from the mark
 
 #### outlook
 
-Recycled share of metal input for the manufacturers on ResourceX, per year 2026–2035: `businessAsUsualPct` (industry trends only) and one `sharePct` series per scenario (`conservative` / `expected` / `ambitious`: matched scrap grows 10 / 25 / 40% a year), capped at `ceilingPct`. Each scenario also has `extraTonnesPerYear2035` and `co2eAvoidedT` (cumulative 2026–2035). `baselines` gives each metal's sourced share today, in 2035 without CircuLink, its ceiling, and the source. `assumptions` are shown on the page as written.
+Recycled share of the metal that the SME manufacturers on ResourceX buy (`segment`, `buyers`), per year 2026–2035: `businessAsUsualPct` and one `sharePct` series per scenario (`conservative` / `expected` / `ambitious`: matched scrap grows 10 / 25 / 40% a year), capped at `ceilingPct`. Each scenario also has `extraTonnesPerYear2035` and `co2eAvoidedT` (cumulative 2026–2035). `baselines` has one row per buyer type (`group`, `buyers`, `mixPct`, `nowPct`, `bau2035Pct`, `ceilingPct`, `sourceName`, `source`, `url`). `mills` lists the steel mills, which are counted in tonnes (`metalUseTonnesPerMonth`, `matchedTonnesPerMonth`) because they already run at their process limits. `assumptions` are shown on the page as written.
 
 ### ImpactReport
 
