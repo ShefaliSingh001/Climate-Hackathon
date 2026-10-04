@@ -132,6 +132,8 @@ def _ensure_ready(db: DB) -> None:
             db.raw.executescript((DB_DIR / "schema.sql").read_text(encoding="utf-8"))
             upgrade_sqlite(db)
         seed_demo_accounts(db)
+        from .trade import seed_demo_activity  # trade imports impact, which imports this module
+        seed_demo_activity(db)
         _ready.add(key)
 
 

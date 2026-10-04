@@ -192,6 +192,85 @@ create table if not exists enquiries (
 );
 
 -- ---------------------------------------------------------------------
+-- Collaborations: several sellers filling one buyer request together
+--
+-- One row per team; collaboration_members has one row per seller in it.
+-- The member with status 'lead' runs the team and sends the joint offer.
+-- ---------------------------------------------------------------------
+
+create table if not exists collaborations (
+  id                     integer primary key,
+  manufacturer_id        integer not null references manufacturers (id) on delete cascade, -- the buyer request
+  created_by_account_id  integer references accounts (id) on delete set null,
+  status                 text not null default 'forming' check (status in ('forming', 'offer_sent', 'withdrawn')),
+  message                text not null default '',
+  is_synthetic           integer not null default 0 check (is_synthetic in (0, 1)),
+  created_at             text not null default (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+  updated_at             text not null default (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
+);
+
+create table if not exists collaboration_members (
+  id                integer primary key,
+  collaboration_id  integer not null references collaborations (id) on delete cascade,
+  producer_id       integer references producers (id) on delete set null, -- null for a lead with no listing
+  name              text not null,
+  abn               text not null check (length(abn) = 11 and abn not glob '*[^0-9]*'),
+  locality          text not null,
+  state             text not null check (state in ('NSW','VIC','QLD','SA','WA','TAS','ACT','NT')),
+  tonnes            real not null check (tonnes >= 0),   -- per month
+  price_aud_per_t   real not null default 0 check (price_aud_per_t >= 0),
+  distance_km       real not null default 0 check (distance_km >= 0), -- yard to the buyer
+  status            text not null check (status in ('lead', 'invited', 'accepted', 'declined')),
+  responded_at      text,
+  unique (collaboration_id, abn)
+);
+
+create index if not exists collaboration_members_abn_idx on collaboration_members (abn);
+
+-- ---------------------------------------------------------------------
+-- Orders (quote requests, offers and joint offers, then their delivery)
+--
+-- Both parties are copied onto the order (name, ABN, place), because a party
+-- may be a dataset business with no account, or a listing that later changes.
+-- An account sees the orders whose buyer_abn or seller_abn is its ABN.
+-- ---------------------------------------------------------------------
+
+create table if not exists orders (
+  id                 integer primary key,
+  producer_id        integer references producers (id) on delete set null,     -- supply listing, if any
+  manufacturer_id    integer references manufacturers (id) on delete set null, -- buyer request, if any
+  buyer_name         text not null,
+  buyer_abn          text not null check (length(buyer_abn) = 11 and buyer_abn not glob '*[^0-9]*'),
+  buyer_locality     text not null,
+  buyer_state        text not null check (buyer_state in ('NSW','VIC','QLD','SA','WA','TAS','ACT','NT')),
+  seller_name        text not null,
+  seller_abn         text not null check (length(seller_abn) = 11 and seller_abn not glob '*[^0-9]*'),
+  seller_locality    text not null,
+  seller_state       text not null check (seller_state in ('NSW','VIC','QLD','SA','WA','TAS','ACT','NT')),
+  material           text not null references materials (key),
+  grade              text not null,                        -- label, e.g. 'High quality'
+  tonnes             real not null check (tonnes > 0),
+  price_aud_per_t    real not null check (price_aud_per_t >= 0),
+  freight_aud_per_t  real not null default 0 check (freight_aud_per_t >= 0),
+  distance_km        real not null default 0 check (distance_km >= 0),
+  status             text not null default 'pending'
+                       check (status in ('pending', 'confirmed', 'in_transit', 'delivered', 'cancelled')),
+  placed_at          text not null default (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+  delivery_date      text not null,                        -- expected, or actual once delivered
+  co2e_avoided_t     real not null default 0,              -- net of trucking
+  collaboration_id   integer references collaborations (id) on delete set null,
+  partners           text not null default '[]',           -- JSON array of partner company names (joint orders)
+  enquiry_id         integer references enquiries (id) on delete set null,
+  is_synthetic       integer not null default 0 check (is_synthetic in (0, 1)),
+  created_at         text not null default (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+
+  check (json_valid(partners) and json_type(partners) = 'array')
+);
+
+create index if not exists orders_buyer_abn_idx on orders (buyer_abn);
+create index if not exists orders_seller_abn_idx on orders (seller_abn);
+
+-- ---------------------------------------------------------------------
 -- Keep updated_at current (recursive_triggers is off by default, so the
 -- inner update does not re-fire the trigger)
 -- ---------------------------------------------------------------------
@@ -206,4 +285,10 @@ create trigger if not exists manufacturers_set_updated_at
   after update on manufacturers for each row
 begin
   update manufacturers set updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') where id = new.id;
+end;
+
+create trigger if not exists collaborations_set_updated_at
+  after update on collaborations for each row
+begin
+  update collaborations set updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now') where id = new.id;
 end;

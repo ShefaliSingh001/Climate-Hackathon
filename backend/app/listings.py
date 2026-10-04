@@ -38,11 +38,14 @@ def _common(row: sqlite3.Row) -> dict:
         "state": row["state"],
         "lat": row["lat"],
         "lng": row["lng"],
-        "verified": row["legal_entity"] is not None,  # ABN found on ABN Lookup
+        # Verified = the business has an ABN on file (the team's rule; ABN Lookup checks can tighten it later).
+        "verified": bool(row["abn"]) and len(row["abn"]) == 11 and row["abn"].isdigit(),
         "monthsOnPlatform": months_since(row["created_at"]),
         "abn": row["abn"],
         "website": row["website"],
         "locationApprox": row["geo_source"] == "locality",  # suburb centre, not the yard itself
+        "address": row["address"],
+        "postcode": row["postcode"],
     }
 
 
