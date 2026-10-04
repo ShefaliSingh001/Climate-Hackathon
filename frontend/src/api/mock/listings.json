@@ -12,8 +12,8 @@
     "form": "Chopped granules",
     "tonnes": 25,
     "frequency": "Monthly",
-    "priceAud": 13050,
-    "virginPriceAud": 15200,
+    "priceAud": 19800,
+    "virginPriceAud": 20500,
     "purity": 99.9,
     "certifications": [
       "EPA NSW licence",
@@ -36,8 +36,8 @@
     "form": "Granules 3–6 mm",
     "tonnes": 18,
     "frequency": "Fortnightly",
-    "priceAud": 12700,
-    "virginPriceAud": 15200,
+    "priceAud": 19300,
+    "virginPriceAud": 20500,
     "purity": 99.5,
     "certifications": [
       "EPA NSW licence",
@@ -59,8 +59,8 @@
     "form": "Wire & tube",
     "tonnes": 12,
     "frequency": "Monthly",
-    "priceAud": 11900,
-    "virginPriceAud": 15200,
+    "priceAud": 18800,
+    "virginPriceAud": 20500,
     "purity": 96,
     "certifications": [
       "EPA NSW licence"
@@ -81,8 +81,8 @@
     "form": "Baled tube",
     "tonnes": 8,
     "frequency": "Monthly",
-    "priceAud": 12100,
-    "virginPriceAud": 15200,
+    "priceAud": 18900,
+    "virginPriceAud": 20500,
     "purity": 97.5,
     "certifications": [
       "EPA NSW licence"
@@ -103,8 +103,8 @@
     "form": "Loose",
     "tonnes": 40,
     "frequency": "Monthly",
-    "priceAud": 2450,
-    "virginPriceAud": 4050,
+    "priceAud": 2900,
+    "virginPriceAud": 4480,
     "purity": 95,
     "certifications": [
       "EPA NSW licence"
@@ -125,8 +125,8 @@
     "form": "Sawn lengths",
     "tonnes": 35,
     "frequency": "Fortnightly",
-    "priceAud": 2850,
-    "virginPriceAud": 4050,
+    "priceAud": 3600,
+    "virginPriceAud": 4480,
     "purity": 99,
     "certifications": [
       "ISO 9001",
@@ -148,8 +148,8 @@
     "form": "Bales",
     "tonnes": 90,
     "frequency": "Weekly",
-    "priceAud": 2300,
-    "virginPriceAud": 4050,
+    "priceAud": 2100,
+    "virginPriceAud": 4480,
     "purity": 97,
     "certifications": [
       "ISO 14001",
@@ -171,8 +171,8 @@
     "form": "Loose",
     "tonnes": 600,
     "frequency": "Weekly",
-    "priceAud": 430,
-    "virginPriceAud": 1050,
+    "priceAud": 450,
+    "virginPriceAud": 680,
     "purity": 98,
     "certifications": [
       "ISO 14001",
@@ -195,7 +195,7 @@
     "tonnes": 900,
     "frequency": "Weekly",
     "priceAud": 455,
-    "virginPriceAud": 1050,
+    "virginPriceAud": 680,
     "purity": 98.5,
     "certifications": [
       "ISO 14001"
@@ -216,8 +216,8 @@
     "form": "Cut to 1.5 m",
     "tonnes": 220,
     "frequency": "Fortnightly",
-    "priceAud": 420,
-    "virginPriceAud": 1050,
+    "priceAud": 490,
+    "virginPriceAud": 680,
     "purity": 99,
     "certifications": [
       "EPA NSW licence"
@@ -238,8 +238,8 @@
     "form": "Loose",
     "tonnes": 300,
     "frequency": "Monthly",
-    "priceAud": 410,
-    "virginPriceAud": 1050,
+    "priceAud": 380,
+    "virginPriceAud": 680,
     "purity": 96,
     "certifications": [
       "EPA NSW licence"
@@ -505,8 +505,8 @@
     "form": "Granules",
     "tonnes": 30,
     "frequency": "Monthly",
-    "priceAud": 12950,
-    "virginPriceAud": 15200,
+    "priceAud": 19700,
+    "virginPriceAud": 20500,
     "purity": 99.9,
     "certifications": [
       "EPA Victoria licence",
@@ -528,8 +528,8 @@
     "form": "Sawn lengths",
     "tonnes": 50,
     "frequency": "Fortnightly",
-    "priceAud": 2700,
-    "virginPriceAud": 4050,
+    "priceAud": 3550,
+    "virginPriceAud": 4480,
     "purity": 99,
     "certifications": [
       "ISO 9001"
@@ -550,8 +550,8 @@
     "form": "Loose",
     "tonnes": 700,
     "frequency": "Weekly",
-    "priceAud": 440,
-    "virginPriceAud": 1050,
+    "priceAud": 460,
+    "virginPriceAud": 680,
     "purity": 98,
     "certifications": [
       "ISO 14001"
@@ -572,8 +572,8 @@
     "form": "Wire",
     "tonnes": 20,
     "frequency": "Monthly",
-    "priceAud": 12000,
-    "virginPriceAud": 15200,
+    "priceAud": 18900,
+    "virginPriceAud": 20500,
     "purity": 96.5,
     "certifications": [
       "ISO 14001"
@@ -594,8 +594,8 @@
     "form": "Shred",
     "tonnes": 500,
     "frequency": "Weekly",
-    "priceAud": 400,
-    "virginPriceAud": 1050,
+    "priceAud": 430,
+    "virginPriceAud": 680,
     "purity": 98,
     "certifications": [
       "ISO 14001"
@@ -638,8 +638,8 @@
     "form": "Loose",
     "tonnes": 40,
     "frequency": "Monthly",
-    "priceAud": 2500,
-    "virginPriceAud": 4050,
+    "priceAud": 2950,
+    "virginPriceAud": 4480,
     "purity": 96,
     "certifications": [
       "EPA SA licence"
@@ -660,8 +660,8 @@
     "form": "Loose",
     "tonnes": 800,
     "frequency": "Weekly",
-    "priceAud": 410,
-    "virginPriceAud": 1050,
+    "priceAud": 440,
+    "virginPriceAud": 680,
     "purity": 97.5,
     "certifications": [
       "ISO 14001"
@@ -682,8 +682,8 @@
     "form": "Granules",
     "tonnes": 22,
     "frequency": "Monthly",
-    "priceAud": 12600,
-    "virginPriceAud": 15200,
+    "priceAud": 19200,
+    "virginPriceAud": 20500,
     "purity": 99.3,
     "certifications": [
       "ISO 14001"
@@ -726,8 +726,8 @@
     "form": "Loose",
     "tonnes": 60,
     "frequency": "Monthly",
-    "priceAud": 2400,
-    "virginPriceAud": 4050,
+    "priceAud": 1300,
+    "virginPriceAud": 4480,
     "purity": 94,
     "certifications": [
       "ISO 14001"
@@ -770,8 +770,8 @@
     "form": "Loose",
     "tonnes": 150,
     "frequency": "Monthly",
-    "priceAud": 360,
-    "virginPriceAud": 1050,
+    "priceAud": 350,
+    "virginPriceAud": 680,
     "purity": 95,
     "certifications": [
       "NT EPA licence"
@@ -792,8 +792,8 @@
     "form": "Any",
     "tonnes": 50,
     "frequency": "Monthly",
-    "priceAud": 3000,
-    "virginPriceAud": 4050,
+    "priceAud": 3700,
+    "virginPriceAud": 4480,
     "purity": 98,
     "certifications": [
       "ISO 14001"
@@ -858,8 +858,8 @@
     "form": "Loose",
     "tonnes": 2000,
     "frequency": "Weekly",
-    "priceAud": 470,
-    "virginPriceAud": 1050,
+    "priceAud": 480,
+    "virginPriceAud": 680,
     "purity": 97,
     "certifications": [
       "ISO 14001"
@@ -902,8 +902,8 @@
     "form": "Granules",
     "tonnes": 20,
     "frequency": "Monthly",
-    "priceAud": 13300,
-    "virginPriceAud": 15200,
+    "priceAud": 20000,
+    "virginPriceAud": 20500,
     "purity": 99.5,
     "certifications": [
       "ISO 9001"
@@ -924,8 +924,8 @@
     "form": "Granules",
     "tonnes": 25,
     "frequency": "Monthly",
-    "priceAud": 13100,
-    "virginPriceAud": 15200,
+    "priceAud": 19900,
+    "virginPriceAud": 20500,
     "purity": 99.5,
     "certifications": [
       "ISO 9001"
@@ -968,8 +968,8 @@
     "form": "Granules or chopped wire",
     "tonnes": 60,
     "frequency": "Monthly",
-    "priceAud": 13200,
-    "virginPriceAud": 15200,
+    "priceAud": 19900,
+    "virginPriceAud": 20500,
     "purity": 99.5,
     "certifications": [
       "ISO 9001",

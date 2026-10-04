@@ -286,8 +286,10 @@ DEMO_BUYER_ABN, DEMO_SELLER_ABN = "99000000001", "99000000002"
 def seed_demo_activity(db: DB) -> None:
     """About 18 months of orders for each demo account and two collaboration invites for the demo seller.
 
-    Counterparts are dataset businesses, so no listings are added (the dataset counts stay 63 / 61). Runs once:
-    it does nothing when demo orders already exist. Everything it writes has is_synthetic set.
+    Counterparts are dataset businesses, so no listings are added (the dataset counts stay as loaded). It adapts to
+    whatever the dataset holds: the demo buyer buys copper and aluminium, the demo seller (a copper recycler) sells
+    to copper and brass makers plus the demo buyer, and the invites go on the requests with the most suppliers.
+    Runs once: it does nothing when demo orders already exist. Everything it writes has is_synthetic set.
     """
     if db.postgres:
         db.execute("select pg_advisory_xact_lock(4243)")
@@ -298,16 +300,12 @@ def seed_demo_activity(db: DB) -> None:
     buyer, seller = accounts.get(DEMO_BUYER_ABN), accounts.get(DEMO_SELLER_ABN)
     if not buyer or not seller:
         return
-    producers = db.execute("select * from producers where output_material in ('copper', 'aluminium') and lat is not null "
-                           "order by id").fetchall()
-    copper_requests = db.execute("select * from manufacturers where required_material = 'copper' and lat is not null "
-                                 "order by id").fetchall()
-    copper_producers, abns = [], {DEMO_SELLER_ABN}
-    for p in producers:  # distinct businesses, so each team has one row per ABN
-        if p["output_material"] == "copper" and p["abn"] not in abns:
-            copper_producers.append(p)
-            abns.add(p["abn"])
-    if not producers or not copper_requests or len(copper_producers) < 3:
+    producers = db.execute("select * from producers where lat is not null order by id").fetchall()
+    requests = db.execute("select * from manufacturers where lat is not null order by id").fetchall()
+    supply = [p for p in producers if p["output_material"] in ("copper", "aluminium")]
+    copper_price = sorted(p["price_aud_per_t"] for p in producers if p["output_material"] == "copper") or [19800]
+    seller_price = copper_price[len(copper_price) // 2]  # the demo seller asks the market median
+    if not supply:
         return
 
     rng = random.Random(2026)
@@ -324,62 +322,68 @@ def seed_demo_activity(db: DB) -> None:
         placed = now - dt.timedelta(days=months_ago * 30.4 + rng.randint(0, 27), hours=rng.randint(0, 8))
         return min(placed, now - dt.timedelta(hours=6))
 
+    def buy(p: dict, tonnes: float, price: float, placed: dt.datetime, status: str):
+        insert_order(db, buyer=me_buyer, seller=party(p["name"], p["abn"], p["locality"], p["state"]),
+                     material=p["output_material"], grade=GRADE_LABELS[p["output_grade"]], tonnes=tonnes, price=price,
+                     km=road_km(buyer["lat"], buyer["lng"], p["lat"], p["lng"]), producer_id=p["id"],
+                     status=status, placed=placed, synthetic=True)
+
     # The demo buyer (Westlink Cable Co.) buys copper and aluminium from dataset producers.
     for months_ago in range(17, -1, -1):
         for _ in range(2 + rng.randint(0, 1) + (1 if months_ago < 9 and rng.random() < 0.5 else 0)):
-            p = rng.choice(producers)
+            p = rng.choice(supply)
             placed = when(months_ago)
-            km = road_km(buyer["lat"], buyer["lng"], p["lat"], p["lng"])
-            tonnes = max(2, round(min(p["output_quantity_t"], 45) * (0.35 + rng.random() * 0.6)))
-            insert_order(db, buyer=me_buyer, seller=party(p["name"], p["abn"], p["locality"], p["state"]),
-                         material=p["output_material"], grade=GRADE_LABELS[p["output_grade"]], tonnes=tonnes,
-                         price=p["price_aud_per_t"] * (0.96 + rng.random() * 0.07), km=km, producer_id=p["id"],
-                         status=status_for(placed), placed=placed, synthetic=True)
+            buy(p, max(2, round(min(p["output_quantity_t"], 45) * (0.35 + rng.random() * 0.6))),
+                p["price_aud_per_t"] * (0.96 + rng.random() * 0.07), placed, status_for(placed))
+    buy(supply[0], 20, supply[0]["price_aud_per_t"], now - dt.timedelta(days=1), "pending")  # one awaiting a reply
 
-    # Always one fresh quote request waiting for a reply.
-    p = copper_producers[0]
-    insert_order(db, buyer=me_buyer, seller=party(p["name"], p["abn"], p["locality"], p["state"]), material="copper",
-                 grade=GRADE_LABELS[p["output_grade"]], tonnes=20, price=p["price_aud_per_t"],
-                 km=road_km(buyer["lat"], buyer["lng"], p["lat"], p["lng"]), producer_id=p["id"], status="pending",
-                 placed=now - dt.timedelta(days=1), synthetic=True)
-
-    # The demo seller (Hunter Copper Reclaim) sells copper to dataset buyers and to the demo buyer.
+    # The demo seller (Hunter Copper Reclaim) sells copper to copper and brass makers, and to the demo buyer.
     buyers = [(party(m["name"], m["abn"], m["locality"], m["state"]), m["id"], m["lat"], m["lng"], m["max_price_aud_per_t"])
-              for m in copper_requests] + [(me_buyer, None, buyer["lat"], buyer["lng"], 13200)]
+              for m in requests if m["required_material"] in ("copper", "brass")]
+    buyers.append((me_buyer, None, buyer["lat"], buyer["lng"], seller_price * 1.01))
+
+    def sell(b, tonnes: float, price: float, placed: dt.datetime, status: str):
+        who, mid, lat, lng, _ = b
+        insert_order(db, buyer=who, seller=me_seller, material="copper", grade="High quality", tonnes=tonnes,
+                     price=price, km=road_km(seller["lat"], seller["lng"], lat, lng), manufacturer_id=mid,
+                     status=status, placed=placed, synthetic=True)
+
     for months_ago in range(17, -1, -1):
         for _ in range(2 + rng.randint(0, 1)):
-            b, mid, lat, lng, max_price = rng.choice(buyers)
+            b = rng.choice(buyers)
             placed = when(months_ago)
-            km = road_km(seller["lat"], seller["lng"], lat, lng)
-            insert_order(db, buyer=b, seller=me_seller, material="copper", grade="High quality",
-                         tonnes=max(2, round(25 * (0.35 + rng.random() * 0.6))),
-                         price=min(max_price, 13050) * (0.96 + rng.random() * 0.05), km=km, manufacturer_id=mid,
-                         status=status_for(placed), placed=placed, synthetic=True)
+            sell(b, max(2, round(25 * (0.35 + rng.random() * 0.6))), seller_price * (0.96 + rng.random() * 0.05),
+                 placed, status_for(placed))
+    sell(buyers[0], 12, seller_price, now - dt.timedelta(days=2), "pending")
 
-    m = copper_requests[0]
-    insert_order(db, buyer=party(m["name"], m["abn"], m["locality"], m["state"]), seller=me_seller, material="copper",
-                 grade="High quality", tonnes=12, price=min(m["max_price_aud_per_t"], 13050),
-                 km=road_km(seller["lat"], seller["lng"], m["lat"], m["lng"]), manufacturer_id=m["id"], status="pending",
-                 placed=now - dt.timedelta(days=2), synthetic=True)
-
-    # Two invites to the demo seller from dataset copper producers, on dataset copper requests.
-    for i in range(2):
-        request = copper_requests[i % len(copper_requests)]
-        pool = [p for p in copper_producers if p["abn"] != request["abn"]]  # a buyer never supplies itself
-        if len(pool) < 2 + i:
+    # Two invites to the demo seller, on the dataset requests with the most possible suppliers.
+    by_material: dict[str, list[dict]] = {}
+    for p in producers:
+        if p["abn"] != DEMO_SELLER_ABN and all(q["abn"] != p["abn"] for q in by_material.get(p["output_material"], [])):
+            by_material.setdefault(p["output_material"], []).append(p)  # one row per business
+    preference = {"copper": 0, "brass": 1, "aluminium": 2, "alloys": 3}
+    candidates = sorted((m for m in requests if len(by_material.get(m["required_material"], [])) >= 3),
+                        key=lambda m: (preference.get(m["required_material"], 9), m["id"]))
+    i = 0
+    for request in candidates:
+        if i == 2:
+            break
+        pool = [p for p in by_material[request["required_material"]] if p["abn"] != request["abn"]][:3]
+        if len(pool) < 3:
             continue
-        lead, partner = pool[i], (pool[i + 1] if i else None)
         need = request["required_quantity_t"]
+        material = request["required_material"]
         cid = db.insert("collaborations", {
             "manufacturer_id": request["id"], "is_synthetic": True if db.postgres else 1,
-            "message": (f"{request['name']} need {need:g} tonnes and we can't cover it alone. Can you take a share from Kooragang?"
-                        if i == 0 else f"Splitting the {request['name']} tender three ways keeps each of us under capacity."),
+            "message": (f"{request['name']} need {need:g} tonnes of {material} a month and we can't cover it alone. "
+                        "Can you take a share from Kooragang?" if i == 0 else
+                        f"Splitting the {request['name']} tender three ways keeps each of us under capacity."),
             "created_at": _iso(now - dt.timedelta(days=1 + 2 * i)),
         })
-        share = max(1, round(need / (2 if partner is None else 3)))
-        team = [(lead, "lead", max(1, round(min(lead["output_quantity_t"], need - share))))]
-        if partner is not None:
-            team.append((partner, "accepted", max(1, round(min(partner["output_quantity_t"], share)))))
+        share = max(1, round(need / (2 if i == 0 else 3)))
+        team = [(pool[0], "lead", max(1, round(min(pool[0]["output_quantity_t"], need - share))))]
+        if i:
+            team.append((pool[1], "accepted", max(1, round(min(pool[1]["output_quantity_t"], share)))))
         for p, status, tonnes in team:
             db.insert("collaboration_members", {
                 "collaboration_id": cid, "producer_id": p["id"], "name": p["name"], "abn": p["abn"], "locality": p["locality"],
@@ -387,5 +391,7 @@ def seed_demo_activity(db: DB) -> None:
                 "distance_km": round(road_km(p["lat"], p["lng"], request["lat"], request["lng"]), 1), "status": status})
         db.insert("collaboration_members", {
             "collaboration_id": cid, "producer_id": None, "name": seller["company"], "abn": seller["abn"],
-            "locality": seller["locality"], "state": seller["state"], "tonnes": share, "price_aud_per_t": 13050,
+            "locality": seller["locality"], "state": seller["state"], "tonnes": share,
+            "price_aud_per_t": round(request["max_price_aud_per_t"] * 0.98, 2),
             "distance_km": round(road_km(seller["lat"], seller["lng"], request["lat"], request["lng"]), 1), "status": "invited"})
+        i += 1

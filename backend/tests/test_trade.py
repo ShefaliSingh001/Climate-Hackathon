@@ -9,8 +9,16 @@ def demo(client, role):
     return client.post("/auth/demo", json={"role": role}).json()["token"]
 
 
+# A material with several suppliers and at least one buyer request in the dataset.
+TEAM_MATERIAL = "alloys"
+
+
 def copper(client, kind):
     return [l for l in client.get("/listings", params={"kind": kind}).json() if l["material"] == "copper"]
+
+
+def team_material(client, kind):
+    return [l for l in client.get("/listings", params={"kind": kind}).json() if l["material"] == TEAM_MATERIAL]
 
 
 def test_orders_need_a_login(client):
@@ -52,7 +60,7 @@ def test_quote_request_becomes_a_pending_order_for_both_sides(client):
 
 def test_seller_offer_on_a_buyer_request(client):
     token = demo(client, "seller")
-    request = copper(client, "demand")[0]
+    request = team_material(client, "demand")[0]
     client.post(f"/listings/{request['id']}/enquiries", headers=auth_header(token),
                 json={"tonnesPerMonth": 8, "firstDelivery": "December 2026", "message": ""})
     new = client.get("/orders", headers=auth_header(token)).json()[0]
@@ -66,7 +74,7 @@ def test_demo_seller_has_invites_and_can_reply(client):
     for t in teams:
         me = [m for m in t["members"] if m["abn"] == "99000000002"]
         assert me and me[0]["status"] == "invited" and t["members"][0]["status"] == "lead"
-        assert t["material"] == "copper" and t["requestId"].startswith("m") and t["tonnesNeeded"] > 0
+        assert t["requestId"].startswith("m") and t["tonnesNeeded"] > 0
     r = client.post(f"/collaborations/{teams[0]['id']}/respond", headers=auth_header(token), json={"accept": True})
     assert r.status_code == 200
     assert [m["status"] for m in r.json()["members"] if m["abn"] == "99000000002"] == ["accepted"]
@@ -77,11 +85,11 @@ def test_demo_seller_has_invites_and_can_reply(client):
 
 
 def test_team_up_invite_accept_offer_becomes_joint_order(client):
-    # A copper recycler signs up and leads a team with a dataset recycler and the demo seller.
-    lead = client.post("/auth/signup", json=seller_signup(material="copper", tonnes=10, priceAud=12500)).json()
+    # A recycler signs up and leads a team with a dataset recycler.
+    lead = client.post("/auth/signup", json=seller_signup(material=TEAM_MATERIAL, tonnes=10, priceAud=2500)).json()
     lead_token, lead_listing = lead["token"], lead["account"]["listingId"]
-    request = copper(client, "demand")[0]
-    other = next(l for l in copper(client, "supply") if l["id"] != lead_listing and l["abn"] != request["abn"])
+    request = team_material(client, "demand")[0]
+    other = next(l for l in team_material(client, "supply") if l["id"] != lead_listing and l["abn"] != request["abn"])
     body = {"requestId": request["id"], "message": "Can you cover the rest?",
             "members": [{"listingId": lead_listing, "tonnes": 10}, {"listingId": other["id"], "tonnes": 5}]}
     r = client.post("/collaborations", headers=auth_header(lead_token), json=body)
@@ -104,25 +112,25 @@ def test_team_up_invite_accept_offer_becomes_joint_order(client):
     order = client.get("/orders", headers=auth_header(lead_token)).json()[0]
     assert order["tonnes"] == 15 and order["partners"] == [other["company"]] and order["collaborationId"] == team["id"]
     assert order["buyer"]["company"] == request["company"] and order["status"] == "pending"
-    assert order["priceAud"] == pytest.approx((10 * 12500 + 5 * other["priceAud"]) / 15, abs=0.01)
+    assert order["priceAud"] == pytest.approx((10 * 2500 + 5 * other["priceAud"]) / 15, abs=0.01)
     # Once sent, the team can't change.
     assert client.post(f"/collaborations/{team['id']}/withdraw", headers=auth_header(lead_token)).status_code == 409
 
 
 def test_collaboration_rules(client):
-    seller = client.post("/auth/signup", json=seller_signup(material="copper")).json()["token"]
-    request = copper(client, "demand")[0]
+    seller = client.post("/auth/signup", json=seller_signup(material=TEAM_MATERIAL)).json()["token"]
+    request = team_material(client, "demand")[0]
     steel = next(l for l in client.get("/listings", params={"kind": "supply"}).json() if l["material"] == "steel")
-    cu = next(l for l in copper(client, "supply") if l["abn"] != request["abn"])
+    cu = next(l for l in team_material(client, "supply") if l["abn"] != request["abn"])
     def create(token, members):
         return client.post("/collaborations", headers=auth_header(token), json={"requestId": request["id"], "members": members})
     assert create(seller, [{"listingId": steel["id"], "tonnes": 5}]).status_code == 422  # wrong material
     assert create(seller, [{"listingId": "m1", "tonnes": 5}]).status_code == 422          # not a supply listing
-    same_business = next((l for l in copper(client, "supply") if l["abn"] == request["abn"]), None)
+    same_business = next((l for l in team_material(client, "supply") if l["abn"] == request["abn"]), None)
     if same_business:  # a business can't supply its own request
         assert create(seller, [{"listingId": same_business["id"], "tonnes": 5}]).status_code == 422
     assert create(demo(client, "buyer"), [{"listingId": cu["id"], "tonnes": 5}]).status_code == 403  # buyers can't
-    # A seller with no copper listing still leads (0 tonnes) and invites others.
+    # A seller with no listing of that material still leads (0 tonnes) and invites others.
     team = create(demo(client, "seller"), [{"listingId": cu["id"], "tonnes": 5}]).json()
     assert [(m["status"], m["tonnes"]) for m in team["members"]] == [("lead", 0), ("invited", 5)]
     assert client.post(f"/collaborations/{team['id']}/withdraw", headers=auth_header(seller)).status_code == 404  # not in it

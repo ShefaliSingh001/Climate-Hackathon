@@ -82,20 +82,22 @@ not the buyer's own scrap) until supply runs out. Replace it with real trades or
 | Landfill avoided | tonnes × 13% | National Waste Report 2022: 87% of metal waste is recovered |
 | Money saved | (buyer's budget per tonne − price) × tonnes | marketplace data |
 
-**2035 outlook: recycled vs virgin metal.**
+**2035 outlook: recycled vs virgin metal for SME manufacturers.**
 
-- Each tender only covers the recycled part of a project. Assuming each manufacturer uses its industry's world
-  average recycled share today, its total metal use is tender ÷ share (about 63,000 tonnes a month for the 61).
-- Today and business as usual: steel 33% flat (IEA; BIR agrees once its 76% coverage is allowed for, and shows scrap
-  use flat since 2020), aluminium 29% rising to 50% by 2050 (IAI), copper 32% flat (ICA), brass as copper,
-  stainless 48% flat (worldstainless). Weighted by our mix: **32.9% today, 33.6% in 2035**.
-- With ResourceX: this month's matched scrap counts as extra recycled input (the information-gap assumption: without
-  the marketplace those buyers would have bought new metal). It grows 10%, 25% or 40% a year as more producers list,
-  never past each metal's evidence ceiling: steel 48% (IEA net-zero 2050), aluminium 50% (IAI), copper and brass 50%
-  (UCL's most optimistic 2050 case), stainless 85% (Europe today). **48.9% in 2035** in the expected case
-  (45.7–48.9% across scenarios), so virgin metal falls from 66% to 51%.
-- COP31's 15% goal covers all materials across the whole economy (6.9% today). Metals are already above it, so the
-  dashboard shows it only as context.
+- Each buyer has a profile in `data/buyer_profiles.csv` (written by `scripts/market_dataset.py`): total metal use,
+  the recycled share its process runs at today, and the most that process can take. Sign-ups without a profile get
+  their metal's world average.
+- Today (and business as usual, held flat): **37.5%** recycled for the 43 SME manufacturers (foundries and
+  fabricators). With ResourceX, matched scrap is extra recycled input, growing 10/25/40% a year and capped at each
+  process's limit: **51.1% in 2035** in the expected case (47.6–52.6%), so virgin metal falls from 62% to 49%.
+- The two steel mills (312,000 t of metal a month) already run at their limits (electric arc furnace on 100% scrap;
+  basic oxygen furnace at 27.8% of a ~30% maximum), so they are reported in tonnes, not in the share.
+- Buyers paying most per tonne go first in the projection (reuse of good offcuts before melting).
+- COP31's 15% goal covers all materials across the whole economy (6.9% today). Metals are already above it.
+
+**Dataset.** Prices, tonnages and buyers are modelled from October 2026 market data: see `data/MARKET_RESEARCH.md`.
+Rebuild with `python backend/scripts/market_dataset.py` then `python backend/scripts/load_db.py`. On Neon, push the
+new rows with `python backend/scripts/sync_postgres.py` (DATABASE_URL set).
 
 **AI report.** Claude (`claude-opus-5-5`) writes the report from the `/impact` numbers only, with structured JSON
 output and the server-side refusal fallback. It needs `ANTHROPIC_API_KEY` (Vercel environment variable, or
@@ -218,9 +220,11 @@ connection the API opens, or invalid materials and grades get through.
 ## Dataset
 
 The loader reads the two spreadsheets in the repo root (`NSW_Steel_Scrap_Producers*.xlsx`,
-`NSW_Steel_Scrap_Manufacturers*.xlsx`): 63 producers and 61 manufacturers. Company names, ABNs and NSW locations are
-real; materials, quantities, compliance (Cert A–E), grades, prices, budgets and timeframes are **synthetic demo
-data**, and every loaded row has `is_synthetic = 1`.
+`NSW_Steel_Scrap_Manufacturers*.xlsx`): 63 producers and 45 manufacturers (businesses that melt scrap or reuse
+offcuts). Company names, ABNs and NSW locations are real; materials, quantities, grades, prices, budgets and
+timeframes are **modelled from October 2026 market research** (`backend/data/MARKET_RESEARCH.md`,
+`backend/scripts/market_dataset.py`), not company data. Compliance tags (Cert A–E) are fictional on purpose. Every
+loaded row has `is_synthetic = 1`.
 
 Each spreadsheet also has a **Sources** sheet with the ABN Lookup and website links behind every business. The loader
 takes the legal entity, published activity and, where the business is an NPI-listed facility, its coordinates

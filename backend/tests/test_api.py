@@ -72,7 +72,7 @@ def auth_header(token):
 def test_listings_follow_the_contract(client):
     supply = client.get("/listings", params={"kind": "supply", "lat": SITE["lat"], "lng": SITE["lng"]}).json()
     demand = client.get("/listings", params={"kind": "demand"}).json()
-    assert len(supply) == 63 and len(demand) == 61
+    assert len(supply) == 63 and len(demand) == 45
     for l in supply + demand:
         assert l["id"][0] in "pm" and l["lat"] is not None and l["lng"] is not None
         assert l["frequency"] == "Monthly" and l["grade"] in {"High quality", "Medium quality", "Short use"}
@@ -84,7 +84,7 @@ def test_listings_follow_the_contract(client):
 
 
 def test_matches_use_model_eligibility(client):
-    body = {"material": "steel", "grade": "high", "tonnesPerMonth": 300, "maxPriceAud": 330, "site": SITE}
+    body = {"material": "steel", "grade": "high", "tonnesPerMonth": 300, "maxPriceAud": 520, "site": SITE}
     results = client.post("/matches", json=body).json()
     assert results and all(r["listing"]["material"] == "steel" for r in results)
     eligible = [r for r in results if r["eligible"]]
@@ -96,13 +96,13 @@ def test_matches_use_model_eligibility(client):
 
 
 def test_order_plan_meets_demand_within_budget(client):
-    body = {"material": "steel", "grade": "high", "tonnesPerMonth": 300, "budgetAud": 95000, "site": SITE, "maxPartners": 4}
+    body = {"material": "steel", "grade": "high", "tonnesPerMonth": 300, "budgetAud": 160000, "site": SITE, "maxPartners": 4}
     plan = client.post("/orders/plan", json=body).json()
     assert plan["status"] == "feasible" and 1 <= len(plan["plans"]) <= 3
     supply = {l["id"]: l for l in client.get("/listings", params={"kind": "supply"}).json()}
     for p in plan["plans"]:
         assert abs(sum(l["tonnes"] for l in p["lines"]) - 300) < 1e-6
-        assert p["totalCostAud"] <= 95000 and p["supplierCount"] <= 4
+        assert p["totalCostAud"] <= 160000 and p["supplierCount"] <= 4
         for line in p["lines"]:
             listing = supply[line["listingId"]]
             assert listing["grade"] == "High quality" and line["tonnes"] <= listing["tonnes"]
@@ -117,7 +117,7 @@ def test_order_plan_reports_shortfall(client):
 
 
 def test_fewest_partners_strategy(client):
-    base = {"material": "steel", "tonnesPerMonth": 300, "budgetAud": 120000, "site": SITE, "maxPartners": 8}
+    base = {"material": "steel", "tonnesPerMonth": 300, "budgetAud": 140000, "site": SITE, "maxPartners": 8}
     cheapest = client.post("/orders/plan", json={**base, "strategy": "cost"}).json()["plans"][0]
     fewest = client.post("/orders/plan", json={**base, "strategy": "fewest"}).json()["plans"][0]
     assert fewest["supplierCount"] <= cheapest["supplierCount"]
@@ -143,7 +143,7 @@ def test_seller_signup_saves_producer_and_account(client):
     assert client.get("/health").json()["accounts"] == 3  # two demo accounts + this one
     # The new producer is used by the matching model straight away: cheapest high-grade steel, so it leads the plan.
     plan = client.post("/orders/plan", json={"material": "steel", "grade": "high", "tonnesPerMonth": 300,
-                                             "budgetAud": 95000, "site": SITE, "maxPartners": 4}).json()
+                                             "budgetAud": 160000, "site": SITE, "maxPartners": 4}).json()
     assert any(l["listingId"] == account["listingId"] for l in plan["plans"][0]["lines"])
 
 
@@ -155,7 +155,7 @@ def test_buyer_signup_saves_manufacturer(client):
     listing = client.get(f"/listings/{account['listingId']}").json()
     assert listing["kind"] == "demand" and listing["budgetAud"] == 80000 and listing["priceAud"] == 400  # 80000 / 200 t
     assert listing["orderBy"] == "2026-11-05" and listing["deliverBy"] == "2026-11-28" and listing["form"] == "Structural sections"
-    assert len(client.get("/listings", params={"kind": "demand"}).json()) == 62
+    assert len(client.get("/listings", params={"kind": "demand"}).json()) == 46
 
 
 def test_signup_rejects_bad_input_without_writing(client):
@@ -170,7 +170,7 @@ def test_signup_rejects_bad_input_without_writing(client):
     assert bad_grade.status_code == 422
     # Only the first sign-up wrote anything.
     assert len(client.get("/listings", params={"kind": "supply"}).json()) == 64
-    assert len(client.get("/listings", params={"kind": "demand"}).json()) == 61
+    assert len(client.get("/listings", params={"kind": "demand"}).json()) == 45
     assert client.get("/health").json()["accounts"] == 3
 
 

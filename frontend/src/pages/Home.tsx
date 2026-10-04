@@ -110,9 +110,9 @@ const AI_POINTS: [typeof MapIcon, string, string][] = [
 ];
 
 const DEMO_MATCHES = [
-  { name: 'Smithfield Cable Recovery', place: 'Smithfield · 5 km', t: 23, price: '$12,745' },
-  { name: 'Hunter Copper Reclaim', place: 'Kooragang · 169 km', t: 25, price: '$13,150' },
-  { name: 'Illawarra Non-Ferrous', place: 'Port Kembla · 87 km', t: 12, price: '$11,960' },
+  { name: 'Smithfield Cable Recovery', place: 'Smithfield · 5 km', t: 23, price: '$19,310' },
+  { name: 'Hunter Copper Reclaim', place: 'Kooragang · 169 km', t: 25, price: '$19,900' },
+  { name: 'Illawarra Non-Ferrous', place: 'Port Kembla · 87 km', t: 12, price: '$18,860' },
 ];
 
 /** Static product vignette of a match: the request, the checks and the ranked result. Animates on reveal. */
@@ -121,7 +121,7 @@ function MatchDemo() {
     <div className="match-demo" aria-label="Example: the AI matching engine ranks three copper suppliers for a 60 tonne monthly order">
       <div className="md-head"><Sparkles size={15} /><b>AI match</b><span>Sample</span></div>
       <div className="md-request">
-        {['Copper', '#1 bare bright', '60 tonnes a month', 'Wetherill Park', 'Up to $13,200 per tonne'].map(c => <span key={c}>{c}</span>)}
+        {['Copper', '#1 bare bright', '60 tonnes a month', 'Wetherill Park', 'Up to $19,900 per tonne'].map(c => <span key={c}>{c}</span>)}
       </div>
       <div className="md-scan" aria-hidden="true"><i /></div>
       <p className="md-checked">Checked 38 copper listings · 9 met every rule</p>
@@ -136,7 +136,7 @@ function MatchDemo() {
           </li>
         ))}
       </ol>
-      <div className="md-foot"><CheckCircle2 size={15} /><span><b>60 of 60 tonnes</b> from 3 suppliers · $12,780 per tonne delivered · 16% cheaper than newly sourced</span></div>
+      <div className="md-foot"><CheckCircle2 size={15} /><span><b>60 of 60 tonnes</b> from 3 suppliers · $19,470 per tonne delivered · 5% cheaper than newly sourced</span></div>
     </div>
   );
 }
@@ -261,8 +261,8 @@ export function Home() {
                 <div className="order-row"><span>Smithfield Cable Recovery, Smithfield</span><span className="num">23 tonnes</span></div>
                 <div className="order-row"><span>Illawarra Non-Ferrous, Port Kembla</span><span className="num">12 tonnes</span></div>
                 <div className="bar"><i /></div>
-                <div className="order-row order-total"><span>Delivered cost</span><span className="num">$12,780 per tonne</span></div>
-                <div className="order-row"><span>Compared with newly sourced copper</span><span className="num good">16% cheaper</span></div>
+                <div className="order-row order-total"><span>Delivered cost</span><span className="num">$19,470 per tonne</span></div>
+                <div className="order-row"><span>Compared with newly sourced copper</span><span className="num good">5% cheaper</span></div>
               </div>
             </Reveal>
           </div>
