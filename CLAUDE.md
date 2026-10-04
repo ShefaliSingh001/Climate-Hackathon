@@ -10,9 +10,9 @@ Before working on the UI, read `frontend/CLAUDE.md` and the latest entries in `f
 
 Owned by the backend teammate. Add notes for it here (run instructions, dataset, matching model) without changing the frontend section.
 
-- Database is SQLite: `backend/db/circulink.db` (committed, already loaded). Rebuild it with `python backend/scripts/load_db.py`. Read `backend/README.md` first.
-- Tables: `producers` (supply), `manufacturers` (demand), `materials` and `grades` (lookups). Grades are ranked `short_use (1) < medium (2) < high (3)`; compare `grades.rank`.
-- Schema: `backend/db/schema.sql`. The loader fills it from the root `NSW_Steel_Scrap_*.xlsx` files and only replaces `is_synthetic = 1` rows.
+- Database: **Neon Postgres in production** (when `DATABASE_URL` is set), **SQLite locally** (`backend/db/circulink.db`, committed, already loaded; rebuild with `python backend/scripts/load_db.py`). `backend/app/db.py` hides the difference; write queries once with `?` placeholders. Read `backend/README.md` first; deployment steps in `backend/DEPLOY.md`.
+- Tables: `producers` (supply), `manufacturers` (demand), `accounts` + `sessions` (logins), `enquiries`, `materials` and `grades` (lookups). Grades are ranked `short_use (1) < medium (2) < high (3)`; compare `grades.rank`.
+- Schema: `backend/db/schema.sql` (SQLite) and `backend/db/schema.postgres.sql` (Postgres). Change both together. The loader fills SQLite from the root `NSW_Steel_Scrap_*.xlsx` files; an empty Postgres seeds itself from that file; `backend/scripts/sync_postgres.py` pushes later changes. Only `is_synthetic` rows are replaced.
 - Open every connection with `pragma foreign_keys = on`, or material and grade keys aren't enforced.
-- API: `uvicorn backend.app.main:app --reload --port 8000` from the repo root; tests `pytest backend/tests`. It implements `frontend/API_CONTRACT.md` plus `POST /orders/plan`.
+- API: `uvicorn backend.app.main:app --reload --port 8000` from the repo root; tests `pytest backend/tests` (each test runs on SQLite and on embedded Postgres). It implements `frontend/API_CONTRACT.md` plus `POST /orders/plan` and `/auth/*` (`backend/FRONTEND_HANDOFF.md` explains how the website adopts real logins). On Vercel the entrypoint is the root `app.py` with the root `requirements.txt`.
 - Matching model: `API/scrap_model_api.py` (team-owned; import it, don't rewrite it). `backend/app/matching.py` adapts listings to its tender/producer shapes. Exact material + grade, certifications, availability window, exact tonnes within budget.
