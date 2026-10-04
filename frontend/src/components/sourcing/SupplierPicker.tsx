@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Check, Search, X } from 'lucide-react';
 import type { Listing, Site } from '../../api/types';
 import { ListingCard } from '../listings/ListingCard';
@@ -20,12 +21,14 @@ interface Props {
   intro: string;
   /** Words after each card's distance, e.g. "to the buyer". */
   distanceText?: string;
+  /** Shown when there is nobody left to add. */
+  emptyText?: string;
   onAdd: (ids: string[]) => void;
   onClose: () => void;
 }
 
 /** Pop-up list of supply listings to add to a combined order or a seller team, in the same card style as the map's side list. */
-export function SupplierPicker({ candidates, site, title = 'Add suppliers', noun = { one: 'supplier', many: 'suppliers' }, intro, distanceText, onAdd, onClose }: Props) {
+export function SupplierPicker({ candidates, site, title = 'Add suppliers', noun = { one: 'supplier', many: 'suppliers' }, intro, distanceText, emptyText, onAdd, onClose }: Props) {
   const [picked, setPicked] = useState<string[]>([]);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<Sort>('rank');
@@ -56,7 +59,8 @@ export function SupplierPicker({ candidates, site, title = 'Add suppliers', noun
 
   const toggle = (id: string) => setPicked(p => (p.includes(id) ? p.filter(x => x !== id) : [...p, id]));
 
-  return (
+  // Rendered on <body> so no parent panel's overflow, stacking or transform can clip or hide it.
+  return createPortal(
     <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="sp-title" ref={dialog}>
         <header className="modal-head">
@@ -96,7 +100,7 @@ export function SupplierPicker({ candidates, site, title = 'Add suppliers', noun
               />
             );
           })}
-          {shown.length === 0 && <div className="empty">{candidates.length ? `No ${noun.many} match your search.` : `Every qualifying ${noun.one} is already added.`}</div>}
+          {shown.length === 0 && <div className="empty">{candidates.length ? `No ${noun.many} match your search.` : (emptyText ?? `Every qualifying ${noun.one} is already added.`)}</div>}
         </div>
 
         <footer className="modal-foot">
@@ -107,6 +111,7 @@ export function SupplierPicker({ candidates, site, title = 'Add suppliers', noun
           </button>
         </footer>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

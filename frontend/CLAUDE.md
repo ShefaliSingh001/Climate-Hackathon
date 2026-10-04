@@ -22,7 +22,7 @@ ResourceX ("Materials in motion"). Use `components/brand/Logo.tsx` for the logo,
 
 ## Accounts and roles
 
-Read `AUTH.md`. Buyers see supply, `/sourcing`, `/orders` and Impact; sellers see buyer requests, `/my-listings`, `/sell/new`, `/collaborations`, `/orders` and Impact. Use `useAuth()` for the account and `useSite()` for the signed-in site (never `HOME_SITE` directly). Guard new pages with `RequireAuth` (optionally `role`).
+Read `AUTH.md`. Buyers see supply, `/sourcing` and `/orders`; sellers see buyer requests, `/my-listings`, `/sell/new`, `/collaborations` and `/orders`. Impact is a public section of the homepage (`/#impact`; `/impact` redirects there). Use `useAuth()` for the account and `useSite()` for the signed-in site (never `HOME_SITE` directly). Guard new pages with `RequireAuth` (optionally `role`).
 
 ## Stack
 
@@ -40,12 +40,12 @@ src/
   components/
     brand/      Logo (mark + live wordmark), DotField (animated dot-wave canvas)
     home/       nswMap.ts (pre-projected NSW outline + sample pins for the homepage),
-                motion.tsx (Reveal, CountUp, useScrollFx: homepage scroll effects)
+                motion.tsx (Reveal, CountUp, useScrollFx: homepage scroll effects),
+                ImpactSection (homepage "Impact by 2035": outlook, this month, folded method; data from api.getImpact)
     layout/     TopBar (role-based nav, search, account menu with Settings and a theme toggle)
     collab/     TeamUpPlanner (seller view of a buyer request: your listing + partners added through the SupplierPicker pop-up, then invite)
     listings/   FilterBar (state, materials, sort, distance), ListingCard (rail card: position + Material / Production rate / Price / Distance with mini icons;
                 also used in the Add suppliers / Add partners pop-up),
-                RankBars (Material / Distance / Price / Reliability bars labelled with positions; Sourcing only),
                 LogisticsEstimate (freight + landed cost), EnquiryForm
     map/        MarketMap (pins, state outline, radius, controls), LayerSwitcher, layers.ts (tile sources),
                 AddressPicker (address + suggestions; the map pin follows what you type; use it wherever a location is entered),
@@ -64,7 +64,7 @@ src/
                 geocode.ts (Photon address search, offline fallback to places.ts), verify.ts (verified = ABN on file),
                 sourcing.ts (multi-supplier order planner)
   pages/        Home (/), Auth (Login, Signup), Marketplace (/marketplace), ListingDetail (/listing/:id),
-                Matches (/sourcing, ranked + combine), MyListings, SellNew, Impact, Settings (/settings),
+                Matches (/sourcing, combine suppliers), MyListings, SellNew, Settings (/settings),
                 Orders (/orders, both roles), Collaborations (/collaborations, sellers)
   state/        store.ts (zustand: mode, region, filters, hovered pin, map layer; defaults come from settings),
                 settings.ts (useSettings: theme, motion, map defaults, notifications; saved in localStorage)
@@ -83,7 +83,7 @@ src/
 - Motion: keep it subtle (transform/opacity, 0.5–0.9 s, one easing). Every animation must stop under `prefers-reduced-motion` **and** `:root[data-motion="reduced"]` (Settings → Reduce animations); in JS check `prefersReducedMotion()` from `state/settings.ts`.
 - Verified means the business has an ABN on file. Use `isVerified()` from `lib/verify.ts`, never `listing.verified` directly.
 - Product language: ResourceX is positioned as **AI matching** for recycled materials (homepage hero and the "matching engine" section). Keep claims to what the matching model does: hard rules (material, grade, certificates, delivery window, budget), ranking with reasons, splitting big orders, delivered cost.
-- Anything not real data is labelled: "Sample" badges on the impact page, "Demo mode" notes when the mock API is active.
+- Anything not real data is labelled: the "Modelled data" chip on the homepage impact section, "Demo mode" notes when the mock API is active.
 
 ## Known gaps / ideas
 

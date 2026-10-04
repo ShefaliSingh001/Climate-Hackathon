@@ -81,13 +81,3 @@ export function rankListings<T extends Rankable>(listings: T[]): Map<string, Ran
   });
   return out;
 }
-
-/** Per-factor positions for results that already carry 0–100 factor values (Sourcing's ranked list). */
-export function rankBreakdowns(rows: Record<Factor, number>[]): Record<Factor, FactorRank>[] {
-  // Rows arrive in ranked order, so ties go to the higher-ranked row.
-  const per = Object.fromEntries(FACTORS.map(f => [f.key, positions(rows.map(r => r[f.key]))])) as Record<Factor, number[]>;
-  return rows.map((r, i) => Object.fromEntries(FACTORS.map(f => [f.key, { position: per[f.key][i], fill: Math.max(4, r[f.key]) }])) as Record<Factor, FactorRank>);
-}
-
-/** Backend reasons can use short units ("$900/t"); spell them out for the UI. */
-export const plainReason = (s: string) => s.replace(/\/t\b/g, ' per tonne').replace(/(\d) t\b/g, '$1 tonnes');
