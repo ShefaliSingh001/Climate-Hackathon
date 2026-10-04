@@ -5,6 +5,44 @@ Anyone (or any Claude session) picking up the frontend should read this before s
 
 ---
 
+## 2026-10-04: Address search on the map, AI-matching homepage, ABN = verified, buyer picks suppliers
+
+**What**
+- **Address search moves the map.** New `components/map/AddressPicker.tsx` holds street address (with suggestions), suburb, state, postcode and a map.
+  - Typing searches for the address (`lib/geocode.ts`, Photon / OpenStreetMap, keyless) and flies the pin to the best match. It fills suburb, state and postcode if they're empty.
+  - You can pick a suggestion, drag the pin, or click the map.
+  - It is used on **List material** (yard address) and **Sign-up** (yard or delivery address, replacing the fixed suburb dropdown).
+  - When Photon can't be reached, known suburbs still resolve offline (`lib/places.ts`).
+  - Listings and sites now carry an optional `address` and `postcode`.
+- **Verified = ABN on file.** `lib/verify.ts` provides `isVerified()` (true if `verified` is true or the ABN is 11 digits). It is used everywhere badges, the "Verified only" filter, ranking and the planner read verification.
+  - New listings are verified straight away when they have an ABN.
+  - "Awaiting checks" / "unverified until we check your EPA licence" is gone. The label is "Verified business (ABN on file)".
+- **Buyer combined orders start empty.** On Sourcing → Combine suppliers there are two ways to start:
+  - **Add suppliers** opens a pop-up (`components/sourcing/SupplierPicker.tsx`) with the qualifying suppliers as the same cards as the map side list (#rank, Material, Production rate, Price, Distance). It has search and sort, and you multi-select then add.
+  - **Suggest a split with AI** runs the matching model as before.
+  - Re-suggest and Add suppliers stay available above the split. `ListingCard` gained optional `selected`, `trailing` and `actionLabel` props.
+- **Homepage: AI matching.**
+  - Hero: "Recycled materials, matched by AI", with an AI eyebrow and a new lede.
+  - New dark "The matching engine" section with four points (hard rules first, ranked with reasons, splits big orders, priced to your door) and an animated sample match card (request chips, scan bar, three ranked suppliers with rule checks, combined result).
+  - The nav reads AI matching · How it works · Who it's for · Impact. The Match step and the meta description mention AI.
+
+**Files**
+- New: `components/map/AddressPicker.tsx`, `lib/geocode.ts`, `lib/verify.ts`, `components/sourcing/SupplierPicker.tsx`.
+- Changed:
+  - Pages: `SellNew`, `Auth` (sign-up), `Home`, `ListingDetail`, `MyListings`, `Matches`
+  - Components: `CombinePlanner`, `ListingCard`
+  - Lib and hooks: `lib/places.ts`, `lib/ranking.ts`, `lib/sourcing.ts`, `hooks/useListings.ts`
+  - API and mock: `api/types.ts`, `api/mock/mockApi.ts`, `api/mock/scoring.ts`
+  - Other: `index.html`, `styles/app.css`, `styles/home.css`
+  - Docs: `API_CONTRACT.md`, `CLAUDE.md`
+
+**Open items**
+- Photon is a free, fair-use service with no uptime promise. Before launch, use a paid or self-hosted geocoder (Geoscape G-NAF is the Australian standard, or Mapbox or Google Places).
+- The sandbox blocks Photon, so address search was tested with a stubbed Photon response plus the offline fallback. Check it live in a local browser.
+- Backend: set `verified: true` whenever a listing's business has an ABN, and optionally store `address` and `postcode`.
+
+---
+
 ## 2026-10-04: Orders dashboard, seller collaborations, stats on map cards
 
 **What**

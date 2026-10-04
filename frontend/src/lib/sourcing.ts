@@ -6,6 +6,7 @@ import { roadKm } from './geo';
 import { monthlyTonnes } from './format';
 import { MATERIALS } from './materials';
 import { cheapestFreight, type FreightEstimate } from './logistics';
+import { isVerified } from './verify';
 
 export type { Strategy };
 
@@ -79,7 +80,7 @@ const gradeOk = (l: Listing, req: OrderRequest) => !req.grade || !l.gradeKey || 
 export function planOrder(listings: Listing[], req: OrderRequest): OrderPlan {
   const candidates = listings
     .filter(l => l.kind === 'supply' && l.material === req.material && gradeOk(l, req))
-    .filter(l => !req.verifiedOnly || l.verified)
+    .filter(l => !req.verifiedOnly || isVerified(l))
     .filter(l => req.minPurity <= 0 || (l.purity != null && l.purity >= req.minPurity))
     // Score each candidate as if it supplied as much as it could toward the order.
     .map(l => allocate(l, req.tonnesPerMonth, req.site));
@@ -106,7 +107,7 @@ export function spareCandidates(listings: Listing[], req: OrderRequest, picked: 
   const ids = new Set(picked.map(p => p.listing.id));
   return listings.filter(l =>
     l.kind === 'supply' && l.material === req.material && !ids.has(l.id) && gradeOk(l, req) &&
-    (!req.verifiedOnly || l.verified) &&
+    (!req.verifiedOnly || isVerified(l)) &&
     (req.minPurity <= 0 || (l.purity != null && l.purity >= req.minPurity)),
   );
 }

@@ -1,6 +1,7 @@
 // Turns a set of listings into positions: an overall rank plus a rank on each factor.
 // The UI shows positions ("#2 of 18", "1st nearest") and relative bars, never a score.
 import type { Listing } from '../api/types';
+import { isVerified } from './verify';
 
 export type Factor = 'material' | 'distance' | 'price' | 'reliability';
 export const FACTORS: { key: Factor; label: string; best: string }[] = [
@@ -35,7 +36,7 @@ function raw(l: Rankable): Record<Factor, number> {
   // Supply: how much cheaper than newly sourced. Demand (seen by sellers): how much the buyer pays relative to it.
   const ratio = l.virginPriceAud ? l.priceAud / l.virginPriceAud : null;
   const price = ratio == null ? 0 : l.kind === 'supply' ? 1 - ratio : ratio;
-  const reliability = (l.verified ? 40 : 0) + l.monthsOnPlatform * 2 + l.certifications.length * 4;
+  const reliability = (isVerified(l) ? 40 : 0) + l.monthsOnPlatform * 2 + l.certifications.length * 4;
   return { material, distance: -l.distanceKm, price, reliability };
 }
 

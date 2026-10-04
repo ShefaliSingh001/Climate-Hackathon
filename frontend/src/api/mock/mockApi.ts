@@ -3,6 +3,7 @@ import type { Api } from '../client';
 import seed from './listings.json';
 import { baselineScore, scoreListing } from './scoring';
 import { planOrder } from '../../lib/sourcing';
+import { hasAbn } from '../../lib/verify';
 import { mockAuth } from '../../auth/mockAuth';
 import { addPendingOrder, ordersFor } from './orders';
 import * as collab from './collaborations';
@@ -37,7 +38,8 @@ export const mockApi: Api = {
   },
 
   async createListing(input: NewListing) {
-    const listing: Listing = { ...input, id: `new-${Date.now()}`, verified: false, monthsOnPlatform: 0 };
+    // Verified as soon as the business has an ABN on file.
+    const listing: Listing = { ...input, id: `new-${Date.now()}`, verified: hasAbn(input.abn), monthsOnPlatform: 0 };
     listings.push(listing);
     created.push(listing);
     saveCreated(created);

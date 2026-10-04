@@ -194,6 +194,11 @@ Recycled share of metal input for the manufacturers on ResourceX, per year 2026â
 
 `source` is `"claude"` when Claude wrote it, or `"template"` when there is no API key or the call failed; `note` then says why. Claude can take ~30 s; the backend caches one report per set of numbers.
 
+### Verification, addresses
+
+- **Verified** means the business has an ABN on file. The UI treats a listing as verified when `verified` is true **or** `abn` is 11 digits (`lib/verify.ts`). Please set `verified: true` on every listing whose business has an ABN.
+- **Addresses:** listings and sites may now carry an optional street `address` and `postcode` alongside `suburb`, `state`, `lat` and `lng`. The UI geocodes the address in the browser (Photon / OpenStreetMap) and sends the pin's `lat`/`lng`. Store them if you can; ignoring them is fine.
+
 ### Order *(proposed)*
 
 ```json

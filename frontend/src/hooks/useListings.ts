@@ -7,6 +7,7 @@ import { roadKm } from '../lib/geo';
 import { useMarket } from '../state/store';
 import { useAsync } from './useAsync';
 import { rankListings } from '../lib/ranking';
+import { isVerified } from '../lib/verify';
 
 export interface ListingView extends Listing {
   distanceKm: number;
@@ -31,7 +32,7 @@ export function useListings() {
     const q = query.trim().toLowerCase();
     const out = inRegion.filter(l =>
       (!materials.length || materials.includes(l.material)) &&
-      (!verifiedOnly || l.verified) &&
+      (!verifiedOnly || isVerified(l)) &&
       (!radiusKm || l.distanceKm <= radiusKm) &&
       (!q || [l.company, l.suburb, l.state, l.grade, l.form, MATERIALS[l.material].label].join(' ').toLowerCase().includes(q)),
     );

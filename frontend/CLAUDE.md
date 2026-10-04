@@ -12,7 +12,7 @@ This folder is the ResourceX UI. The backend, dataset and AI matching are built 
 
 - Only edit files inside `frontend/`. Root files (`README.md`, `.gitignore`, `CLAUDE.md`) are shared: append, don't rewrite.
 - Never touch `backend/` from a frontend change.
-- All backend calls go through `src/api/client.ts`. Components never call `fetch` directly. The one exception is `lib/routing.ts`, which calls a public road-routing service (not our backend).
+- All backend calls go through `src/api/client.ts`. Components never call `fetch` directly. The exceptions are `lib/routing.ts` (public road routing, OSRM) and `lib/geocode.ts` (public address search, Photon), which call third-party services, not our backend.
 - If the data shape must change, update `src/api/types.ts`, `API_CONTRACT.md` and the mock together, and note it in the log so the backend side sees it.
 - Run `npm run typecheck` and `npm run build` before committing.
 
@@ -46,9 +46,11 @@ src/
                 RankBars (Material / Distance / Price / Reliability bars labelled with positions; Sourcing only),
                 LogisticsEstimate (freight + landed cost), EnquiryForm
     map/        MarketMap (pins, state outline, radius, controls), LayerSwitcher, layers.ts (tile sources),
+                AddressPicker (address + suggestions; the map pin follows what you type; use it wherever a location is entered),
                 RouteMap (your site + partners, animated road routes via lib/routing.ts, dashed line fallback)
     orders/     MonthlyChart (single-series columns with hover tooltip)
-    sourcing/   CombinePlanner (split one demand across several suppliers, editable)
+    sourcing/   CombinePlanner (buyer builds a combined order: starts empty, Add suppliers or Suggest a split with AI),
+                SupplierPicker (Add suppliers pop-up, same cards as the map side list)
     ui/         CircularityChart, Select (custom accessible dropdown; use it, never a native <select>),
                 NumberField (text-based number input that can be cleared; use it, never type="number"),
                 MultiSelect (checkbox dropdown, empty = all), Switch (on/off with label)
@@ -57,6 +59,7 @@ src/
   lib/          materials.ts (labels, colours, CO2 factors), regions.ts (states, bounds, HOME_SITE),
                 format.ts (aud, tonnes, volume, PRICE_NOTE), geo.ts (straight-line distance), logistics.ts (truck rates, freight estimate),
                 ranking.ts (positions per factor, no scores), routing.ts (OSRM road routes),
+                geocode.ts (Photon address search, offline fallback to places.ts), verify.ts (verified = ABN on file),
                 sourcing.ts (multi-supplier order planner)
   pages/        Home (/), Auth (Login, Signup), Marketplace (/marketplace), ListingDetail (/listing/:id),
                 Matches (/sourcing, ranked + combine), MyListings, SellNew, Impact, Settings (/settings),
@@ -76,6 +79,8 @@ src/
 - No match scores in the UI. Show positions ("#2 of 18", "1st nearest") from `lib/ranking.ts`; scores only decide the order. Positions are always unique (1, 2, 3…); ties are broken, never shared.
 - Theme: `data-theme` on `<html>` (light/dark, absent = follow the device), set by `state/settings.ts` and by the inline script in `index.html` before first paint. Only use tokens so both themes work.
 - Motion: keep it subtle (transform/opacity, 0.5–0.9 s, one easing). Every animation must stop under `prefers-reduced-motion` **and** `:root[data-motion="reduced"]` (Settings → Reduce animations); in JS check `prefersReducedMotion()` from `state/settings.ts`.
+- Verified means the business has an ABN on file. Use `isVerified()` from `lib/verify.ts`, never `listing.verified` directly.
+- Product language: ResourceX is positioned as **AI matching** for recycled materials (homepage hero and the "matching engine" section). Keep claims to what the matching model does: hard rules (material, grade, certificates, delivery window, budget), ranking with reasons, splitting big orders, delivered cost.
 - Anything not real data is labelled: "Sample" badges on the impact page, "Demo mode" notes when the mock API is active.
 
 ## Known gaps / ideas

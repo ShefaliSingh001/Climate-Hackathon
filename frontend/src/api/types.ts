@@ -41,6 +41,9 @@ export interface Listing {
   gradeKey?: GradeKey;
   abn?: string;
   website?: string | null;
+  /** Street address and postcode of the yard or delivery site, when given. */
+  address?: string;
+  postcode?: string;
   /** True when lat/lng is the suburb centre rather than the yard itself. */
   locationApprox?: boolean;
   /** Supply: period the tonnes are available (ISO dates). Demand: purchase window. */
@@ -58,6 +61,9 @@ export interface Site {
   state: StateCode;
   lat: number;
   lng: number;
+  /** Street address and postcode, when the account gave one. */
+  address?: string;
+  postcode?: string;
 }
 
 export interface MatchRequest {

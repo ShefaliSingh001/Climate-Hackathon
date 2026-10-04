@@ -1,6 +1,6 @@
-import { useRef } from 'react';
+import { useRef, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, BadgeCheck, Check, Combine, Factory, Filter, Layers3, Map as MapIcon, Recycle, Truck } from 'lucide-react';
+import { ArrowRight, BadgeCheck, Check, CheckCircle2, Combine, Factory, Filter, Layers3, ListOrdered, Map as MapIcon, Recycle, ShieldCheck, Sparkles, Truck } from 'lucide-react';
 import { useAuth } from '../auth/AuthProvider';
 import { DotField } from '../components/brand/DotField';
 import { Logo } from '../components/brand/Logo';
@@ -28,7 +28,7 @@ function Photo({ name, className = '' }: { name: PhotoKey; className?: string })
   );
 }
 
-const NAV_LINKS: [string, string][] = [['problem', 'The problem'], ['how', 'How it works'], ['who', "Who it's for"], ['impact', 'Impact']];
+const NAV_LINKS: [string, string][] = [['ai', 'AI matching'], ['how', 'How it works'], ['who', "Who it's for"], ['impact', 'Impact']];
 const SECTIONS = NAV_LINKS.map(([id]) => id);
 
 // The homepage map is zoomed into Greater Sydney, the Hunter and the Illawarra, where most sample suppliers are.
@@ -95,12 +95,51 @@ function NswMap() {
 
 const STEPS: { n: number; t: string; photo: PhotoKey; p: string; feats: [typeof MapIcon, string][] }[] = [
   { n: 1, t: 'List', photo: 'sortingLine', p: 'Recyclers publish material, grade, monthly volume, price and yard location in a few minutes.',
-    feats: [[BadgeCheck, 'ABN, EPA licence and certifications checked'], [MapIcon, 'Pinned on the live supply map by suburb']] },
-  { n: 2, t: 'Match', photo: 'copper', p: 'Manufacturers set demand and budget. Suppliers are ranked on material quality, distance, price and reliability.',
-    feats: [[Filter, 'Filter by state, material and distance'], [Layers3, 'Street, satellite, terrain and dark map views']] },
+    feats: [[BadgeCheck, 'Verified with the business ABN'], [MapIcon, 'Pinned on the live supply map from the yard address']] },
+  { n: 2, t: 'Match', photo: 'copper', p: 'Manufacturers set demand and budget. The AI matching engine checks every listing and ranks the suppliers that can really fill the order.',
+    feats: [[Filter, 'Grade, certificates, delivery window and budget checked'], [Layers3, 'Every match explained in plain words']] },
   { n: 3, t: 'Deliver', photo: 'truck', p: 'See the delivered cost with freight included, then split one order across partners to reach your volume within budget.',
     feats: [[Truck, 'Rigid, semi-trailer or B-double freight on the road route'], [Combine, 'Combined orders from several verified suppliers']] },
 ];
+
+const AI_POINTS: [typeof MapIcon, string, string][] = [
+  [ShieldCheck, 'Hard rules first', 'Exact material and grade, certificates, stock in your delivery window and your budget. Anything that fails is ruled out.'],
+  [ListOrdered, 'Ranked, with reasons', 'The rest are ranked on quality, distance, price and reliability, and every result says why in plain words.'],
+  [Combine, 'Splits big orders', 'When no single yard has enough, it finds the cheapest combination of suppliers to reach your tonnes.'],
+  [Truck, 'Priced to your door', 'Road freight on the real route is added to every match, so you compare delivered cost.'],
+];
+
+const DEMO_MATCHES = [
+  { name: 'Smithfield Cable Recovery', place: 'Smithfield · 5 km', t: 23, price: '$12,745' },
+  { name: 'Hunter Copper Reclaim', place: 'Kooragang · 169 km', t: 25, price: '$13,150' },
+  { name: 'Illawarra Non-Ferrous', place: 'Port Kembla · 87 km', t: 12, price: '$11,960' },
+];
+
+/** Static product vignette of a match: the request, the checks and the ranked result. Animates on reveal. */
+function MatchDemo() {
+  return (
+    <div className="match-demo" aria-label="Example: the AI matching engine ranks three copper suppliers for a 60 tonne monthly order">
+      <div className="md-head"><Sparkles size={15} /><b>AI match</b><span>Sample</span></div>
+      <div className="md-request">
+        {['Copper', '#1 bare bright', '60 tonnes a month', 'Wetherill Park', 'Up to $13,200 per tonne'].map(c => <span key={c}>{c}</span>)}
+      </div>
+      <div className="md-scan" aria-hidden="true"><i /></div>
+      <p className="md-checked">Checked 38 copper listings · 9 met every rule</p>
+      <ol className="md-results">
+        {DEMO_MATCHES.map((m, i) => (
+          <li key={m.name} style={{ '--i': i } as CSSProperties}>
+            <span className="md-pos">#{i + 1}</span>
+            <div className="md-who"><b>{m.name}</b><small>{m.place}</small>
+              <span className="md-checks">{['Grade', 'Certified', 'In window', 'In budget'].map(c => <em key={c}><Check size={11} strokeWidth={3} />{c}</em>)}</span>
+            </div>
+            <div className="md-num"><b>{m.t} tonnes</b><small>{m.price} delivered</small></div>
+          </li>
+        ))}
+      </ol>
+      <div className="md-foot"><CheckCircle2 size={15} /><span><b>60 of 60 tonnes</b> from 3 suppliers · $12,780 per tonne delivered · 16% cheaper than newly sourced</span></div>
+    </div>
+  );
+}
 
 export function Home() {
   const { account } = useAuth();
@@ -137,9 +176,9 @@ export function Home() {
       <section className="hero">
         <DotField className="hero-dots" />
         <div className="wrap hero-body">
-          <span className="eyebrow">Materials in motion · New South Wales</span>
-          <h1>Turn recovered material into tomorrow's feedstock</h1>
-          <p className="lede">ResourceX connects recyclers with the manufacturers who need their material. Verified supply, freight-inclusive prices and orders split across partners, so buying recycled is as easy as buying new.</p>
+          <span className="eyebrow"><Sparkles size={14} /> AI matching for recycled materials · NSW</span>
+          <h1>Recycled materials, matched by AI</h1>
+          <p className="lede">Tell ResourceX what your plant needs. Our matching engine checks every listing for grade, certificates, volume and delivery window, then ranks the suppliers that can really fill the order, priced to your door.</p>
           <div className="hero-cta">
             <Link className="h-btn h-primary" to={buyerCta}>Find recycled supply <ArrowRight size={16} /></Link>
             <Link className="h-btn h-outline-light" to={sellerCta}>List your material</Link>
@@ -168,6 +207,24 @@ export function Home() {
             <li><b><CountUp value={6.9} decimals={1} suffix="%" /></b><p><strong>The world is going backwards</strong>Global circular material use fell from 9.1% in 2018 to 6.9% in 2025.</p></li>
             <li><b><CountUp value={80} suffix="%" /></b><p><strong>Recovered material needs buyers</strong>NSW aims to recover 80% of waste by 2030. Every recovered tonne still has to find a manufacturer who can use it.</p></li>
             <li><b><CountUp value={600} suffix=" km" /></b><p><strong>Freight decides the deal</strong>A cheaper tonne 600 km away can end up costing more than newly sourced material. Without a delivered price, buyers default to what they know.</p></li>
+          </Reveal>
+        </div>
+      </section>
+
+      <section className="band ai" id="ai">
+        <div className="wrap ai-grid">
+          <Reveal className="ai-copy" variant="left">
+            <span className="eyebrow">The matching engine</span>
+            <h2 className="h2-left">Describe the order. AI finds who can fill it.</h2>
+            <p>Instead of calling yards one by one, enter material, grade, tonnes and budget once. ResourceX does the checking, the ranking and the freight maths in seconds.</p>
+            <Reveal as="ul" className="ai-points" stagger>
+              {AI_POINTS.map(([Icon, title, text]) => (
+                <li key={title}><span className="ic"><Icon size={17} /></span><div><b>{title}</b><span>{text}</span></div></li>
+              ))}
+            </Reveal>
+          </Reveal>
+          <Reveal className="ai-demo" variant="right" delay={120}>
+            <MatchDemo />
           </Reveal>
         </div>
       </section>
@@ -238,7 +295,7 @@ export function Home() {
                 <h3>Buy recycled with the numbers in front of you</h3>
                 <p>Compare grade, certification and delivered cost against newly sourced materials before you call anyone.</p>
                 <ul>
-                  {['Set demand and budget once', 'Split orders across verified partners', 'Report CO₂e avoided for every tonne'].map(x => <li key={x}><Check size={16} />{x}</li>)}
+                  {['Set demand and budget once, get AI-ranked suppliers', 'Split orders across verified partners', 'Report CO₂e avoided for every tonne'].map(x => <li key={x}><Check size={16} />{x}</li>)}
                 </ul>
                 <Link className="h-btn h-outline h-sm" to={buyerCta}>Buy on ResourceX <ArrowRight size={15} /></Link>
               </div>

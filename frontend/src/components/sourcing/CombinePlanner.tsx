@@ -1,22 +1,27 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
-import { BadgeCheck, CheckCircle2, Plus, X } from 'lucide-react';
+import { BadgeCheck, CheckCircle2, Layers3, Plus, Sparkles, X } from 'lucide-react';
 import { api, isMock } from '../../api/client';
 import type { Listing, OrderPlanResult } from '../../api/types';
 import { MATERIALS } from '../../lib/materials';
+import { VERIFIED_LABEL, isVerified } from '../../lib/verify';
 import { aud, co2e, fmtInt, tonnes } from '../../lib/format';
 import { NumberField } from '../ui/NumberField';
 import { Select } from '../ui/Select';
 import { TRUCKS } from '../../lib/logistics';
 import { allocate, spareCandidates, summarise, STRATEGIES, type Allocation, type OrderRequest, type Strategy } from '../../lib/sourcing';
 import { RouteMap } from '../map/RouteMap';
+import { SupplierPicker } from './SupplierPicker';
 
 interface Props {
   supply: Listing[];
   request: Omit<OrderRequest, 'strategy' | 'maxPartners' | 'verifiedOnly'>;
 }
 
-/** Fills one demand from several suppliers (via the matching model), then lets the buyer adjust the split by hand. */
+/**
+ * Builds one demand from several suppliers. The buyer starts with an empty order and either picks suppliers
+ * (Add suppliers pop-up) or asks the matching model to suggest a split, then adjusts it by hand.
+ */
 export function CombinePlanner({ supply, request }: Props) {
   const [strategy, setStrategy] = useState<Strategy>('cost');
   const [maxPartners, setMaxPartners] = useState(4);
@@ -27,6 +32,7 @@ export function CombinePlanner({ supply, request }: Props) {
   const [option, setOption] = useState(0);
   const [planning, setPlanning] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [picking, setPicking] = useState(false);
 
   const req: OrderRequest = { ...request, strategy, maxPartners, verifiedOnly };
   const reqKey = JSON.stringify(req);
@@ -38,17 +44,28 @@ export function CombinePlanner({ supply, request }: Props) {
       return listing ? [allocate(listing, l.tonnes, req.site)] : [];
     });
 
-  // Re-plan whenever the requirement or options change; manual edits apply on top until then.
+  // When the requirement changes, keep the suppliers already chosen for the same material and
+  // drop any AI suggestion (it was for the old requirement).
   useEffect(() => {
-    let live = true;
+    setResult(null);
+    setSent(false);
+    setFailed(false);
+    setLines(ls => ls.filter(l => l.listing.material === req.material).map(l => allocate(l.listing, l.tonnes, req.site)));
+  }, [byId, reqKey]);
+
+  /** Asks the matching model for a split; it replaces the current one. */
+  async function suggest() {
     setPlanning(true);
     setSent(false);
-    api.planOrder(req).then(
-      r => { if (live) { setResult(r); setOption(0); setLines(linesFor(r, 0)); setFailed(false); setPlanning(false); } },
-      () => { if (live) { setResult(null); setLines([]); setFailed(true); setPlanning(false); } },
-    );
-    return () => { live = false; };
-  }, [byId, reqKey]);
+    try {
+      const r = await api.planOrder(req);
+      setResult(r); setOption(0); setLines(linesFor(r, 0)); setFailed(false);
+    } catch {
+      setResult(null); setFailed(true);
+    } finally {
+      setPlanning(false);
+    }
+  }
 
   const pickOption = (i: number) => { setOption(i); setLines(linesFor(result, i)); setSent(false); };
 
@@ -58,9 +75,21 @@ export function CombinePlanner({ supply, request }: Props) {
   const setTonnes = (id: string, t: number) =>
     setLines(ls => ls.map(l => (l.listing.id === id ? allocate(l.listing, t, req.site) : l)));
   const remove = (id: string) => setLines(ls => ls.filter(l => l.listing.id !== id));
-  const add = (id: string) => {
-    const listing = supply.find(s => s.id === id);
-    if (listing) setLines(ls => [...ls, allocate(listing, Math.max(plan.shortfallT, 1), req.site)]);
+  /** Adds suppliers from the pop-up, each filling as much of what is still needed as it can. */
+  const add = (ids: string[]) => {
+    setPicking(false);
+    setSent(false);
+    setLines(ls => {
+      let left = Math.max(0, req.tonnesPerMonth - ls.reduce((t, l) => t + l.tonnes, 0));
+      const added = ids.flatMap(id => {
+        const listing = byId.get(id);
+        if (!listing) return [];
+        const a = allocate(listing, Math.max(left, 1), req.site);
+        left = Math.max(0, left - a.tonnes);
+        return [a];
+      });
+      return [...ls, ...added];
+    });
   };
 
   async function requestAll() {
@@ -102,13 +131,13 @@ export function CombinePlanner({ supply, request }: Props) {
       {failed && <div className="panel empty">Couldn't plan this order. Check the API is running and try again.</div>}
       {result?.notice && <p className="hint">{result.notice}</p>}
 
-      <section className={`panel plan-summary ${met && inBudget ? 'ok' : 'warn'}`} aria-busy={planning}>
+      <section className={`panel plan-summary ${!lines.length ? 'idle' : met && inBudget ? 'ok' : 'warn'}`} aria-busy={planning}>
         <div className="plan-status">
           {!lines.length && result?.reason && <><b>No combination found.</b> {result.reason}{result.shortfallTonnes ? ` Short by ${tonnes(result.shortfallTonnes)} of compatible stock.` : ''}</>}
           {met && inBudget && <><CheckCircle2 size={18} /><b>Demand met within budget</b> using {lines.filter(l => l.tonnes > 0).length} partners</>}
           {lines.length > 0 && !met && <><b>Short by {tonnes(plan.shortfallT)} a month.</b> Add a partner, allow more partners or untick “Verified only”.</>}
           {met && !inBudget && <><b>Over budget by {aud(-plan.budgetLeft)} a month.</b> Try “Lowest cost” or raise the budget.</>}
-          {!lines.length && !result?.reason && !failed && <>Planning…</>}
+          {!lines.length && !result?.reason && !failed && (planning ? <>Finding the best split…</> : <><Layers3 size={18} /><b>No suppliers yet.</b> Add suppliers yourself, or let the matching AI suggest a split.</>)}
         </div>
         <div className="meters">
           <div className="meter">
@@ -130,9 +159,25 @@ export function CombinePlanner({ supply, request }: Props) {
 
       <div className="combine-grid">
         <section className="panel table-panel">
-          <h2>Order split</h2>
+          <div className="panel-head">
+            <h2>Order split</h2>
+            {lines.length > 0 && (
+              <div className="split-actions">
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setPicking(true)} disabled={!spare.length}><Plus size={14} />Add suppliers</button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={suggest} disabled={planning}><Sparkles size={14} />{planning ? 'Thinking…' : 'Re-suggest with AI'}</button>
+              </div>
+            )}
+          </div>
           {lines.length === 0 ? (
-            <div className="empty">No suppliers in this plan. Change the grade, allow more partners, untick “Verified only” or add a supplier below.</div>
+            <div className="split-empty">
+              <Layers3 size={26} />
+              <p><b>Choose who supplies this order.</b><br />Pick suppliers from the {spare.length} that match your grade and purity, or let the matching AI build the cheapest split for you.</p>
+              <div className="split-empty-actions">
+                <button type="button" className="btn btn-primary" onClick={() => setPicking(true)} disabled={!spare.length}><Plus size={16} />Add suppliers</button>
+                <button type="button" className="btn btn-ghost" onClick={suggest} disabled={planning}><Sparkles size={16} />{planning ? 'Thinking…' : 'Suggest a split with AI'}</button>
+              </div>
+              {!spare.length && <p className="hint">No suppliers match. Change the grade or purity, or untick “Verified only”.</p>}
+            </div>
           ) : (
             <div className="table-scroll">
               <table className="alloc">
@@ -147,7 +192,7 @@ export function CombinePlanner({ supply, request }: Props) {
                           <span className="code small" style={{ '--c': MATERIALS[a.listing.material].color } as CSSProperties} title={MATERIALS[a.listing.material].label}>{MATERIALS[a.listing.material].code}</span>
                           <div>
                             <Link to={`/listing/${a.listing.id}`}>{a.listing.company}</Link>
-                            {a.listing.verified && <span className="verified"><BadgeCheck size={13} /></span>}
+                            {isVerified(a.listing) && <span className="verified" title={VERIFIED_LABEL}><BadgeCheck size={13} /></span>}
                             <small>{a.listing.suburb}, {a.listing.state} · {fmtInt(a.distanceKm)} km · {a.freight.trips} {a.freight.trips === 1 ? 'trip' : 'trips'} by {TRUCKS[a.freight.truck].label.toLowerCase()}</small>
                           </div>
                         </div>
@@ -171,14 +216,7 @@ export function CombinePlanner({ supply, request }: Props) {
               </table>
             </div>
           )}
-          {spare.length > 0 && (
-            <div className="add-row">
-              <Plus size={15} />
-              <Select<string> id="c-add" className="grow" value={null} placeholder="Add another supplier…" aria-label="Add a supplier" onChange={add}
-                options={spare.map(s => ({ value: s.id, label: s.company, hint: `${s.suburb}, ${s.state} · ${aud(s.priceAud)} per tonne` }))} />
-            </div>
-          )}
-          <div className="add-row">
+          {lines.length > 0 && <div className="add-row">
             {sent ? (
               <div className="notice" role="status"><CheckCircle2 size={16} />
                 <div>Quote requests sent to {lines.filter(l => l.tonnes > 0).length} partners.{isMock && ' Demo mode: nothing left this browser.'}</div>
@@ -186,7 +224,7 @@ export function CombinePlanner({ supply, request }: Props) {
             ) : (
               <button className="btn btn-primary" disabled={!lines.some(l => l.tonnes > 0)} onClick={requestAll}>Request quotes from all partners</button>
             )}
-          </div>
+          </div>}
         </section>
 
         <section className="panel flush">
@@ -194,9 +232,13 @@ export function CombinePlanner({ supply, request }: Props) {
         </section>
       </div>
       <p className="hint">
-        {isMock ? 'Demo mode: the split is a quick greedy estimate in the browser.' : 'The split comes from the ResourceX matching model: exact material and grade, every partner available in the delivery window, the exact tonnes and the material budget.'}
+        {isMock ? 'Demo mode: the AI suggestion is a quick estimate in the browser.' : 'AI suggestions come from the ResourceX matching model: exact material and grade, every partner available in the delivery window, the exact tonnes and the material budget.'}
         {' '}Landed cost = supplier price + estimated road freight to your site. Freight uses the cheapest truck per partner and assumes an empty return leg.
       </p>
+      {picking && (
+        <SupplierPicker candidates={spare} site={req.site} material={req.material} shortT={plan.shortfallT}
+          onAdd={add} onClose={() => setPicking(false)} />
+      )}
     </div>
   );
 }

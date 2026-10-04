@@ -13,6 +13,7 @@ import { RouteMap } from '../components/map/RouteMap';
 import { LogisticsEstimate } from '../components/listings/LogisticsEstimate';
 import { EnquiryForm } from '../components/listings/EnquiryForm';
 import { TeamUpPlanner } from '../components/collab/TeamUpPlanner';
+import { VERIFIED_LABEL, isVerified } from '../lib/verify';
 
 export function ListingDetail() {
   const { id = '' } = useParams();
@@ -62,6 +63,7 @@ function ListingBody({ l, own, site: HOME_SITE }: { l: Listing; own: boolean; si
   const { route } = useRoute(HOME_SITE, l);
   const m = MATERIALS[l.material];
   const isSupply = l.kind === 'supply';
+  const verified = isVerified(l);
   // Real road distance when the routing service answers; otherwise straight line × 1.25.
   const distanceKm = route?.distanceKm ?? roadKm(HOME_SITE, l);
   const monthly = monthlyTonnes(l.tonnes, l.frequency);
@@ -77,7 +79,7 @@ function ListingBody({ l, own, site: HOME_SITE }: { l: Listing; own: boolean; si
           <div className={`code large${isSupply ? '' : ' square'}`} style={{ '--c': m.color } as CSSProperties}>{m.code}</div>
           <div className="detail-title">
             <p className="eyebrow">{isSupply ? 'Supply listing' : 'Buyer request'} · {m.label}</p>
-            <h1>{l.company}{l.verified && <span className="verified" title="Verified site and licences"><BadgeCheck size={20} /></span>}</h1>
+            <h1>{l.company}{verified && <span className="verified" title={VERIFIED_LABEL}><BadgeCheck size={20} /></span>}</h1>
             <p className="detail-sub"><MapPin size={14} />{l.suburb}, {l.state} · {fmtInt(distanceKm)} km by road from {HOME_SITE.suburb}
               {route && <><Clock size={14} style={{ marginLeft: 6 }} />{driveTime(route.durationMin)} drive</>}</p>
             {rank && <p className="detail-rank"><Trophy size={14} />Ranked #{rank.position} of {rank.of} {isSupply ? 'suppliers' : 'buyer requests'} on your map</p>}
@@ -156,12 +158,12 @@ function ListingBody({ l, own, site: HOME_SITE }: { l: Listing; own: boolean; si
                 <tbody>
                   <tr><th>Location</th><td>{l.suburb}, {l.state}</td></tr>
                   <tr><th>Trading on ResourceX</th><td className="num">{l.monthsOnPlatform} months</td></tr>
-                  <tr><th>Status</th><td>{l.verified ? 'Verified site and licences' : 'Not yet verified'}</td></tr>
+                  <tr><th>Status</th><td>{verified ? VERIFIED_LABEL : 'Not verified (no ABN on file)'}</td></tr>
                 </tbody>
               </table>
               <h2 style={{ marginTop: 16 }}>Licences and certifications</h2>
               <div className="certs">
-                {l.verified && <span className="tag good">Verified site</span>}
+                {verified && <span className="tag good">Verified business</span>}
                 {l.certifications.map(c => <span key={c} className="tag">{c}</span>)}
               </div>
             </section>
