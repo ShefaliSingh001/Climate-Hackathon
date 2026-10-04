@@ -6,3 +6,5 @@ psycopg[binary]>=3.2,<4
 # matching model (API/scrap_model_api.py)
 numpy>=1.26,<3
 scipy>=1.11,<2
+# monthly impact report written by Claude (backend/app/report.py); set ANTHROPIC_API_KEY in Vercel
+anthropic>=1.11,<2

@@ -64,6 +64,7 @@ The UI finds a seller's own listings by comparing `abn` with the signed-in accou
 | `POST /matches` | `MatchRequest` (below) | `MatchResult[]`, best first |
 | `POST /orders/plan` | `OrderPlanRequest` (below) | `OrderPlanResult` (below) |
 | `GET /impact` | | `ImpactStats` (below) |
+| `POST /impact/report?refresh=true` | `refresh` optional: write a new one instead of the cached one | `ImpactReport` (below) |
 
 The UI currently filters by state, material, distance and search text **on the client**, so `GET /listings` can return every listing of that kind. Server-side filtering can be added later without breaking the UI.
 
@@ -133,18 +134,59 @@ Splits one monthly demand across several suppliers. The backend uses the tender 
 
 ### ImpactStats
 
+Served by the backend now (`backend/app/impact.py`, `forecast.py`) from the marketplace's producers and manufacturers. Abridged:
+
 ```json
 {
-  "tonnesRecirculated": 14820,
-  "co2eAvoidedT": 21460,
-  "activeVerifiedSites": 212,
-  "matchesConverted": 146,
-  "byMaterial": [{ "material": "steel", "tonnes": 7400 }],
-  "isSample": true
+  "period": "November 2026",
+  "isSample": true,
+  "tonnesRecirculated": 3819,
+  "co2eAvoidedT": 15893.5,
+  "transportCo2eT": 56.8,
+  "landfillAvoidedT": 496.5,
+  "moneySavedAud": 810150,
+  "valueRecoveredAud": 3547320,
+  "tonnesOffered": 3930,
+  "tonnesRequested": 20786,
+  "trades": 68,
+  "producers": { "total": 63, "matched": 60 },
+  "tenders": { "total": 61, "filled": 11, "partial": 9 },
+  "byMaterial": [{ "material": "aluminium", "tonnes": 710, "co2eAvoidedT": 10355.5, "offeredT": 710, "requestedT": 1590 }],
+  "circularity": { "globalRatePct": 6.9, "australiaRatePct": 4.3, "goalPct": 15, "globalSource": "...", "australiaSource": "...", "australiaGoal": "...", "goal": "..." },
+  "factors": [{ "material": "steel", "tco2ePerT": 1.5, "source": "worldsteel: ...", "url": "https://..." }],
+  "assumptions": ["Projected from the NSW demo dataset: ..."]
 }
 ```
 
-Set `isSample: false` once the numbers come from real trades; the UI then drops the "Sample" badges.
+| Field | Notes |
+| --- | --- |
+| `co2eAvoidedT` | tonnes CO2e avoided by replacing virgin metal, **net** of trucking (`transportCo2eT`) |
+| `landfillAvoidedT` | tonnes × 13%, the share of metal waste Australia still landfills |
+| `moneySavedAud` | buyers' budget per tonne minus the price paid, × tonnes |
+| `valueRecoveredAud` | paid to producers for the scrap |
+| `byMaterial` | sorted by `co2eAvoidedT`, largest first; includes materials with 0 tonnes traded |
+| `isSample` | `true` while figures come from the synthetic dataset; the UI shows "Sample" badges and a projection notice |
+| `outlook` | 2035 outlook, below |
+
+#### outlook
+
+Recycled share of metal input for the manufacturers on ResourceX, per year 2026–2035: `businessAsUsualPct` (industry trends only) and one `sharePct` series per scenario (`conservative` / `expected` / `ambitious`: matched scrap grows 10 / 25 / 40% a year), capped at `ceilingPct`. Each scenario also has `extraTonnesPerYear2035` and `co2eAvoidedT` (cumulative 2026–2035). `baselines` gives each metal's sourced share today, in 2035 without CircuLink, its ceiling, and the source. `assumptions` are shown on the page as written.
+
+### ImpactReport
+
+```json
+{
+  "headline": "3,819 tonnes of NSW scrap metal matched to manufacturers in November 2026.",
+  "summary": ["Paragraph one.", "Paragraph two."],
+  "highlights": ["Aluminium is 19% of the tonnes but 65% of the CO2e avoided."],
+  "source": "claude",
+  "model": "claude-opus-5-5",
+  "note": null,
+  "generatedAt": "2026-10-03T05:40:00+00:00"
+}
+```
+
+`source` is `"claude"` when Claude wrote it, or `"template"` when there is no API key or the call failed; `note` then says why. Claude can take ~30 s; the backend caches one report per set of numbers.
 
 ## Computed in the browser (no endpoint yet)
 

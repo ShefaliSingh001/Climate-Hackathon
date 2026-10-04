@@ -133,11 +133,96 @@ export interface Enquiry {
   message: string;
 }
 
-export interface ImpactStats {
-  tonnesRecirculated: number;
+export interface MaterialImpact {
+  material: MaterialKey;
+  /** Tonnes traded. */
+  tonnes: number;
+  /** Net of trucking emissions. */
   co2eAvoidedT: number;
-  activeVerifiedSites: number;
-  matchesConverted: number;
-  byMaterial: { material: MaterialKey; tonnes: number }[];
+  offeredT: number;
+  requestedT: number;
+}
+
+export interface ImpactStats {
+  /** e.g. "November 2026". */
+  period: string;
+  /** True while the figures come from the synthetic demo dataset rather than recorded trades. */
   isSample: boolean;
+  tonnesRecirculated: number;
+  /** CO2e avoided by replacing virgin material, net of trucking. */
+  co2eAvoidedT: number;
+  transportCo2eT: number;
+  landfillAvoidedT: number;
+  /** Buyers' budget per tonne minus the price paid, times tonnes. */
+  moneySavedAud: number;
+  /** Paid to producers for material that would otherwise be waste. */
+  valueRecoveredAud: number;
+  tonnesOffered: number;
+  tonnesRequested: number;
+  trades: number;
+  producers: { total: number; matched: number };
+  tenders: { total: number; filled: number; partial: number };
+  /** Sorted by CO2e avoided, largest first. */
+  byMaterial: MaterialImpact[];
+  circularity: {
+    globalRatePct: number;
+    globalSource: string;
+    australiaRatePct: number;
+    australiaSource: string;
+    australiaGoal: string;
+    goalPct: number;
+    goal: string;
+  };
+  factors: { material: MaterialKey; tco2ePerT: number; source: string; url: string | null }[];
+  assumptions: string[];
+  outlook: Outlook;
+}
+
+export interface OutlookScenario {
+  key: 'conservative' | 'expected' | 'ambitious';
+  label: string;
+  /** Yearly growth in scrap matched on ResourceX. */
+  growthPct: number;
+  /** Recycled share of metal input, one value per year in `Outlook.years`. */
+  sharePct: number[];
+  extraTonnesPerYear2035: number;
+  /** Cumulative CO2e avoided by the extra recycled metal, 2026–2035. */
+  co2eAvoidedT: number;
+}
+
+/** 2035 outlook: recycled share of metal input for manufacturers on ResourceX, with and without the marketplace. */
+export interface Outlook {
+  metric: string;
+  years: number[];
+  businessAsUsualPct: number[];
+  scenarios: OutlookScenario[];
+  /** Highest share with credible evidence for this metal mix. */
+  ceilingPct: number;
+  metalInputTonnesPerMonth: number;
+  /** Per metal, largest share of the manufacturers' metal first. Weighting `nowPct` by `mixPct` gives `businessAsUsualPct[0]`. */
+  baselines: {
+    material: MaterialKey;
+    /** Share of the manufacturers' total metal use (from the dataset). */
+    mixPct: number;
+    inputTonnesPerMonth: number;
+    nowPct: number;
+    bau2035Pct: number;
+    ceilingPct: number;
+    sourceName: string;
+    source: string;
+    url: string;
+  }[];
+  assumptions: string[];
+}
+
+/** Plain-language monthly report. `source` says whether Claude wrote it or the template did. */
+export interface ImpactReport {
+  headline: string;
+  summary: string[];
+  highlights: string[];
+  source: 'claude' | 'template';
+  model: string | null;
+  /** Why the template was used, when it was. */
+  note: string | null;
+  generatedAt: string;
 }

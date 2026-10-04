@@ -5,6 +5,27 @@ Anyone (or any Claude session) picking up the frontend should read this before s
 
 ---
 
+## 2026-10-04: New impact dashboard (2035 recycled vs virgin) + AI monthly report
+
+**What**
+- Replaced the Impact page (`/impact`). It now answers one question: **by 2035, how much more recycled metal do manufacturers buy with ResourceX than without it?** Bars for today / 2035 without / 2035 with, split into recycled (from producers) and virgin (newly mined).
+- A visible "Where these numbers come from" table under the bars: each metal's share of our manufacturers' metal (from the marketplace data), recycled share today, 2035 without, max with ResourceX, and the named, linked source, with an "Our mix" total row.
+- "This month on ResourceX": scrap matched, CO₂e avoided, money saved by buyers.
+- "AI monthly report" panel (`POST /impact/report`): Claude writes it from the page's numbers only; without an API key the backend returns a template report and the panel says so. Headline and three takeaways show; the full text sits behind "Read full report".
+- "How we calculate this" (closed by default): assumptions, full citations, emission factors, and the global all-materials chart as context only.
+- Metal CO₂ factors in `lib/materials.ts` now match the sourced backend factors (aluminium 9.0 → 14.6, copper 3.0 → 3.2, steel 1.4 → 1.5, brass 2.5 → 3.2, alloys 2.0 → 4.3), so listing cards and the dashboard agree.
+
+**Why**
+- Team aim: show that using the marketplace raises manufacturers' recycled purchasing by about 15 percentage points by 2035 (34% → 49%, virgin 66% → 51%), with every number traceable to the data or a published source. COP31's 15% goal covers all materials worldwide, so it is context, not a number used in the calculation.
+
+**Files**
+- `pages/Impact.tsx`, `api/types.ts` (`ImpactStats`, `MaterialImpact`, `Outlook`, `OutlookScenario`, `ImpactReport`), `api/client.ts` (`getImpactReport`), `api/mock/mockApi.ts`, `lib/materials.ts`, `styles/app.css` (impact section), `API_CONTRACT.md`.
+
+**Open items**
+- The report needs `ANTHROPIC_API_KEY` set on the backend (Vercel env var, or `backend/.env` locally) for Claude to write it.
+
+---
+
 ## 2026-10-03: Materials dropdown, Settings page, animated routes, homepage scroll motion
 
 **What**
