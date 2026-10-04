@@ -12,6 +12,7 @@ import { NumberField } from '../components/ui/NumberField';
 import { Select } from '../components/ui/Select';
 import { RankBars } from '../components/listings/RankBars';
 import { CombinePlanner } from '../components/sourcing/CombinePlanner';
+import { VERIFIED_LABEL, isVerified } from '../lib/verify';
 
 interface Requirement {
   material: MaterialKey;
@@ -131,7 +132,7 @@ export function Matches() {
                         <h3>
                           <span className="code small" style={{ '--c': MATERIALS[l.material].color } as CSSProperties} title={MATERIALS[l.material].label}>{MATERIALS[l.material].code}</span>
                           <Link to={`/listing/${l.id}`}>{l.company}</Link>
-                          {l.verified && <span className="verified"><BadgeCheck size={15} /></span>}
+                          {isVerified(l) && <span className="verified" title={VERIFIED_LABEL}><BadgeCheck size={15} /></span>}
                           {r.inBestPlan && <span className="tag good" title="Part of the cheapest combined order"><Trophy size={13} /> Best combined order</span>}
                         </h3>
                         <p>{l.grade} · {volume(l.tonnes, l.frequency)} · {aud(l.priceAud)} per tonne · {l.suburb}, {l.state}</p>

@@ -1,6 +1,7 @@
 // Stand-in for the backend matching model. Only the mock API uses this.
 import type { Listing, MatchRequest, MatchResult, ScoreBreakdown, Site } from '../types';
 import { roadKm } from '../../lib/geo';
+import { isVerified } from '../../lib/verify';
 import { aud, fmtInt, monthlyTonnes } from '../../lib/format';
 
 const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
@@ -16,7 +17,7 @@ export function scoreListing(listing: Listing, req: MatchRequest): MatchResult {
     ? clamp(((1 - listing.priceAud / listing.virginPriceAud) * 220 + 40) * (withinBudget ? 1 : 0.4))
     : 60;
   const volume = clamp((monthlyTonnes(listing.tonnes, listing.frequency) / Math.max(1, req.tonnesPerMonth)) * 100);
-  const reliability = clamp((listing.verified ? 60 : 30) + listing.monthsOnPlatform * 2 + listing.certifications.length * 4);
+  const reliability = clamp((isVerified(listing) ? 60 : 30) + listing.monthsOnPlatform * 2 + listing.certifications.length * 4);
   const breakdown: ScoreBreakdown = { material, distance, price, reliability, volume };
   const score = material === 0 ? 0
     : Math.round(material * 0.3 + distance * 0.25 + price * 0.2 + reliability * 0.15 + volume * 0.1);

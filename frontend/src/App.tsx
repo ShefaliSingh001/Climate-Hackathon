@@ -10,6 +10,8 @@ import { SellNew } from './pages/SellNew';
 import { Impact } from './pages/Impact';
 import { ListingDetail } from './pages/ListingDetail';
 import { Settings } from './pages/Settings';
+import { Orders } from './pages/Orders';
+import { Collaborations } from './pages/Collaborations';
 
 /** Signed-in shell: top bar plus the current page. */
 function AppShell() {
@@ -42,6 +44,8 @@ export function App() {
             <Route path="/listing/:id" element={<ListingDetail />} />
             <Route path="/impact" element={<Impact />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/orders" element={<Orders />} />
+            <Route path="/collaborations" element={<RequireAuth role="seller"><Collaborations /></RequireAuth>} />
             <Route path="/sourcing" element={<RequireAuth role="buyer"><Matches /></RequireAuth>} />
             <Route path="/matches" element={<MatchesRedirect />} />
             <Route path="/my-listings" element={<RequireAuth role="seller"><MyListings /></RequireAuth>} />

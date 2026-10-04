@@ -123,6 +123,25 @@ both still work as before (the body must name the business). That's what the cur
 
 Running the app locally writes to `backend/db/circulink.db`; don't commit test sign-ups.
 
+## Orders and collaborations
+
+`app/trade.py`, tables `orders`, `collaborations`, `collaboration_members`. Endpoints need a login (`Authorization: Bearer`):
+
+| Endpoint | What it does |
+| --- | --- |
+| `GET /orders` | The account's orders (as buyer or seller), newest first. Matched on ABN, because both parties are copied onto the order |
+| `POST /listings/{id}/enquiries` | Unchanged response. When signed in it also records a `pending` order: buyer → supply listing, or seller → buyer request |
+| `GET /collaborations` | Sellers: teams they lead or were invited to |
+| `POST /collaborations` | Start a team on a buyer request (`m…`) with supply listings (`p…`) of the same material. The caller leads; the others are `invited` |
+| `POST /collaborations/{id}/respond` | An invited member accepts or declines |
+| `POST /collaborations/{id}/offer` | The lead sends the joint offer once nobody is still `invited`; it becomes a `pending` order with `partners` |
+| `POST /collaborations/{id}/withdraw` | The lead cancels a team that hasn't sent its offer |
+
+- Freight on an order uses the frontend's truck rates (`TRUCKS` in `trade.py` = `frontend/src/lib/logistics.ts`); CO2e avoided uses the `impact.py` factors minus trucking.
+- Order status is `pending`, `confirmed`, `in_transit`, `delivered` or `cancelled`. Nothing moves an order past `pending` yet (no confirm or delivery endpoint); add one when real trades start.
+- **Demo data:** the first connection seeds about 18 months of orders for the two demo accounts (counterparts are dataset businesses) and two collaboration invites for the demo seller, all `is_synthetic`. No listings are added, so the dataset stays at 63 producers and 61 manufacturers.
+- **Verified** (`verified` on listings) means the business has an ABN on file. **Address and postcode** from the website's address search are saved on producers and manufacturers rows and returned on listings.
+
 ## Database files
 
 The database is committed as `backend/db/circulink.db`, already loaded, so you can open it straight away. The

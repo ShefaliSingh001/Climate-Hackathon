@@ -2,11 +2,12 @@ import { useMemo } from 'react';
 import { api } from '../api/client';
 import type { Listing } from '../api/types';
 import { MATERIALS } from '../lib/materials';
-import { useSite } from '../auth/AuthProvider';
+import { useAuth, useSite } from '../auth/AuthProvider';
 import { roadKm } from '../lib/geo';
 import { useMarket } from '../state/store';
 import { useAsync } from './useAsync';
 import { rankListings } from '../lib/ranking';
+import { isVerified } from '../lib/verify';
 
 export interface ListingView extends Listing {
   distanceKm: number;
@@ -16,7 +17,9 @@ export interface ListingView extends Listing {
 export function useListings() {
   const { mode, region, materials, query, sort, radiusKm, verifiedOnly } = useMarket();
   const site = useSite();
-  const { data, loading, error } = useAsync(() => api.listListings(mode, site), [mode, site]);
+  // Scores depend on who is signed in (the backend personalises them), so refetch when the account changes.
+  const accountId = useAuth().account?.id;
+  const { data, loading, error } = useAsync(() => api.listListings(mode, site), [mode, site, accountId]);
 
   const all: ListingView[] = useMemo(
     () => (data ?? []).map(l => ({ ...l, distanceKm: roadKm(site, l) })),
@@ -31,7 +34,7 @@ export function useListings() {
     const q = query.trim().toLowerCase();
     const out = inRegion.filter(l =>
       (!materials.length || materials.includes(l.material)) &&
-      (!verifiedOnly || l.verified) &&
+      (!verifiedOnly || isVerified(l)) &&
       (!radiusKm || l.distanceKm <= radiusKm) &&
       (!q || [l.company, l.suburb, l.state, l.grade, l.form, MATERIALS[l.material].label].join(' ').toLowerCase().includes(q)),
     );

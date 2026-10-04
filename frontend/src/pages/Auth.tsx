@@ -1,6 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { api, isMock } from '../api/client';
-import type { MaterialKey, NewListing } from '../api/types';
+import type { MaterialKey, NewListing, Site } from '../api/types';
 import { DATASET_MATERIALS, GRADES, MATERIALS, MATERIAL_KEYS } from '../lib/materials';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { AlertTriangle, Factory, Recycle } from 'lucide-react';
@@ -9,7 +9,8 @@ import { DEMO_ACCOUNTS } from '../auth/mockAuth';
 import type { Role } from '../auth/types';
 import { DotField } from '../components/brand/DotField';
 import { Logo } from '../components/brand/Logo';
-import { PLACES, placeLabel, toSite } from '../lib/places';
+import { PLACES } from '../lib/places';
+import { AddressPicker, type SiteAddress } from '../components/map/AddressPicker';
 import { NumberField } from '../components/ui/NumberField';
 import { Select } from '../components/ui/Select';
 
@@ -131,12 +132,13 @@ export function Signup() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [role, setRole] = useState<Role>(params.get('role') === 'seller' ? 'seller' : 'buyer');
-  const [form, setForm] = useState({ company: '', name: '', email: '', password: '', abn: '', place: 0 });
+  const [form, setForm] = useState({ company: '', name: '', email: '', password: '', abn: '' });
+  const [place, setPlace] = useState<SiteAddress>({ address: '', suburb: '', state: 'NSW', postcode: '', lat: PLACES[0].lat, lng: PLACES[0].lng });
   const [biz, setBiz] = useState<Business>({
     material: SIGNUP_MATERIALS[0], grade: GRADES.high, detail: '', tonnes: 50, priceAud: 0, budgetAud: 0,
     orderBy: isoDay(14), deliverBy: isoDay(45), certifications: ['Cert A'], website: '',
   });
-  const [errors, setErrors] = useState<Partial<Record<keyof typeof form | keyof Business | 'form', string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<keyof typeof form | keyof Business | 'form' | 'suburb', string>>>({});
   const [busy, setBusy] = useState(false);
 
   // While submitting, signUp sets the account before navigate() runs; don't let this redirect win.
@@ -155,6 +157,7 @@ export function Signup() {
     if (!/^\S+@\S+\.\S+$/.test(form.email.trim())) errs.email = 'Enter a valid email address.';
     if (form.password.length < 8) errs.password = 'Use at least 8 characters.';
     if (!/^\d{11}$/.test(form.abn.replace(/\s/g, ''))) errs.abn = 'Enter your 11-digit ABN.';
+    if (!place.suburb.trim()) errs.suburb = seller ? 'Enter the suburb of your yard.' : 'Enter the suburb you take delivery in.';
     if (!(biz.tonnes > 0)) errs.tonnes = 'Enter tonnes per month above zero.';
     if (seller && !biz.detail.trim()) errs.detail = 'Describe the material you take in, e.g. "Steel offcuts and swarf".';
     if (seller && !(biz.priceAud > 0)) errs.priceAud = 'Enter your asking price in dollars per tonne.';
@@ -166,24 +169,28 @@ export function Signup() {
     setBusy(true);
     try {
       if (!(await isEmailAvailable(form.email))) throw new Error('An account with this email already exists. Log in instead.');
-      const site = toSite(form.company.trim(), PLACES[form.place]);
+      const site: Site = { name: form.company.trim(), ...place, suburb: place.suburb.trim(), address: place.address.trim() || undefined, postcode: place.postcode || undefined };
       const abn = form.abn.replace(/\s/g, '');
       const website = biz.website.trim() ? (/^https?:\/\//.test(biz.website.trim()) ? biz.website.trim() : `https://${biz.website.trim()}`) : null;
       // Save the business first (producers or manufacturers table), then create the login.
       const listing: NewListing = {
         kind: seller ? 'supply' : 'demand', company: form.company.trim(), abn, website,
-        suburb: site.suburb, state: site.state, lat: site.lat, lng: site.lng,
+        suburb: site.suburb, state: site.state, lat: site.lat, lng: site.lng, address: site.address, postcode: site.postcode,
         material: biz.material, grade: biz.grade, form: biz.detail.trim(), tonnes: biz.tonnes, frequency: 'Monthly',
         priceAud: seller ? biz.priceAud : Math.round((biz.budgetAud / biz.tonnes) * 100) / 100,
         virginPriceAud: null, purity: null, certifications: seller ? biz.certifications : [],
         ...(seller ? {} : { budgetAud: biz.budgetAud, orderBy: biz.orderBy, deliverBy: biz.deliverBy }),
       };
-      try {
-        await api.createListing(listing);
-      } catch (err) {
-        throw new Error(`Couldn't save your business: ${(err as Error).message}`);
+      if (isMock) {
+        // Demo mode: save the listing in the browser, then the login.
+        try {
+          await api.createListing(listing);
+        } catch (err) {
+          throw new Error(`Couldn't save your business: ${(err as Error).message}`);
+        }
       }
-      await signUp({ ...form, abn, role, site });
+      // With the backend, the business and the login are saved together in one transaction.
+      await signUp({ ...form, abn, role, site, listing });
       navigate(seller ? '/my-listings' : '/marketplace', { replace: true });
     } catch (err) {
       setErrors({ form: (err as Error).message });
@@ -213,16 +220,15 @@ export function Signup() {
             {errors.abn && <span className="err">{errors.abn}</span>}
           </label>
         </div>
-        <div className="form-row">
-          <label className="field">Your name
-            <input id="su-name" autoComplete="name" value={form.name} onChange={e => update({ name: e.target.value })} aria-invalid={!!errors.name} />
-            {errors.name && <span className="err">{errors.name}</span>}
-          </label>
-          <div className="field"><label htmlFor="su-place">{role === 'buyer' ? 'Delivery site' : 'Yard location'}</label>
-            <Select<number> id="su-place" value={form.place} onChange={i => update({ place: i })}
-              options={PLACES.map((p, i) => ({ value: i, label: placeLabel(p) }))} />
-          </div>
-        </div>
+        <label className="field">Your name
+          <input id="su-name" autoComplete="name" value={form.name} onChange={e => update({ name: e.target.value })} aria-invalid={!!errors.name} />
+          {errors.name && <span className="err">{errors.name}</span>}
+        </label>
+        <fieldset className="auth-section">
+          <legend>{seller ? 'Yard location' : 'Delivery site'}</legend>
+          <AddressPicker idPrefix="su" label={seller ? 'Yard address' : 'Delivery address'} value={place}
+            onChange={p => setPlace(v => ({ ...v, ...p }))} suburbError={errors.suburb} mapHeight={200} />
+        </fieldset>
         <fieldset className="auth-section">
           <legend>{seller ? 'What you sell' : 'What you need'}</legend>
           <div className="form-row">

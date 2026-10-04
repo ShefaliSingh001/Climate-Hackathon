@@ -1,8 +1,18 @@
-import type { Enquiry, ImpactReport, ImpactStats, Listing, ListingKind, MatchRequest, MatchResult, NewListing, OrderPlanRequest, OrderPlanResult, Site } from '../types';
+import type { Collaboration, Enquiry, ImpactReport, ImpactStats, Listing, ListingKind, MatchRequest, MatchResult, NewCollaboration, NewListing, OrderPlanRequest, OrderPlanResult, Site } from '../types';
 import type { Api } from '../client';
 import seed from './listings.json';
 import { baselineScore, scoreListing } from './scoring';
 import { planOrder } from '../../lib/sourcing';
+import { hasAbn } from '../../lib/verify';
+import { mockAuth } from '../../auth/mockAuth';
+import { addPendingOrder, ordersFor } from './orders';
+import * as collab from './collaborations';
+
+const me = () => {
+  const a = mockAuth.current();
+  if (!a) throw new Error('Sign in to see this.');
+  return a;
+};
 
 // Listings created in demo mode are kept in this browser so they survive a reload.
 const CREATED_KEY = 'resourcex.createdListings';
@@ -28,7 +38,8 @@ export const mockApi: Api = {
   },
 
   async createListing(input: NewListing) {
-    const listing: Listing = { ...input, id: `new-${Date.now()}`, verified: false, monthsOnPlatform: 0 };
+    // Verified as soon as the business has an ABN on file.
+    const listing: Listing = { ...input, id: `new-${Date.now()}`, verified: hasAbn(input.abn), monthsOnPlatform: 0 };
     listings.push(listing);
     created.push(listing);
     saveCreated(created);
@@ -54,8 +65,38 @@ export const mockApi: Api = {
     }, 250);
   },
 
-  async sendEnquiry(listingId: string, _enquiry: Enquiry) {
+  async sendEnquiry(listingId: string, enquiry: Enquiry) {
+    // A quote request (buyer) or an offer (seller) shows up in Orders as pending.
+    const listing = listings.find(l => l.id === listingId);
+    const a = mockAuth.current();
+    if (listing && a) addPendingOrder(a, listing, Math.max(1, enquiry.tonnesPerMonth));
     return wait({ id: `enq-${listingId}-${Date.now()}`, status: 'sent' as const }, 300);
+  },
+
+  async listOrders() {
+    return wait(ordersFor(mockAuth.current(), listings), 250);
+  },
+
+  async listCollaborations() {
+    return wait(collab.collaborationsFor(mockAuth.current(), listings), 200);
+  },
+
+  async createCollaboration(input: NewCollaboration) {
+    return wait(collab.createCollaboration(me(), input, listings), 300);
+  },
+
+  async respondToCollaboration(id: string, accept: boolean): Promise<Collaboration> {
+    const a = me();
+    return wait(collab.respond(a, collab.collaborationsFor(a, listings), id, accept), 200);
+  },
+
+  async withdrawCollaboration(id: string) {
+    return wait(collab.withdraw(collab.collaborationsFor(me(), listings), id), 200);
+  },
+
+  async sendJointOffer(id: string) {
+    const a = me();
+    return wait(collab.sendOffer(a, collab.collaborationsFor(a, listings), id, listings), 300);
   },
 
   async getImpact(): Promise<ImpactStats> {

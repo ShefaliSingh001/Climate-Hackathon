@@ -1,26 +1,16 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import L from 'leaflet';
-import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { api, isMock } from '../api/client';
-import type { Frequency, Listing, MaterialKey, NewListing, StateCode } from '../api/types';
+import type { Frequency, Listing, MaterialKey, NewListing } from '../api/types';
 import { GRADES, MATERIALS, MATERIAL_KEYS } from '../lib/materials';
-import { REGIONS } from '../lib/regions';
 import { useAuth } from '../auth/AuthProvider';
-import { LAYERS } from '../components/map/layers';
+import { AddressPicker } from '../components/map/AddressPicker';
 import { NumberField } from '../components/ui/NumberField';
+import { isVerified } from '../lib/verify';
 import { Select } from '../components/ui/Select';
 
 const CERTS = ['EPA licence', 'ISO 14001', 'ISO 9001', 'APCO member', 'NTCRS approved', 'drumMUSTER collector'];
-const STATES = REGIONS.filter(r => r.code !== 'AU').map(r => r.code as StateCode);
-
-const pickIcon = L.divIcon({ className: '', html: '<div class="pin" style="--c:#4F7A26">You</div>', iconSize: [30, 30], iconAnchor: [15, 15] });
-
-function ClickToPlace({ onPick }: { onPick: (lat: number, lng: number) => void }) {
-  useMapEvents({ click: e => onPick(e.latlng.lat, e.latlng.lng) });
-  return null;
-}
 
 type Errors = Partial<Record<'grade' | 'tonnes' | 'price' | 'suburb' | 'abn', string>>;
 
@@ -28,7 +18,7 @@ export function SellNew() {
   const { account } = useAuth();
   const site = account!.site;
   const [form, setForm] = useState<NewListing>({
-    kind: 'supply', company: account!.company, suburb: site.suburb, state: site.state,
+    kind: 'supply', company: account!.company, address: site.address ?? '', postcode: site.postcode ?? '', suburb: site.suburb, state: site.state,
     lat: site.lat, lng: site.lng, material: isMock ? 'copper' : 'steel', grade: isMock ? '' : GRADES.high, form: '', tonnes: 10, abn: account!.abn,
     frequency: 'Monthly', priceAud: 0, virginPriceAud: null, purity: null, certifications: ['EPA licence'],
   });
@@ -71,7 +61,7 @@ export function SellNew() {
           <CheckCircle2 size={16} />
           <div>
             <b>{MATERIALS[created.material].label} listing published.</b><br />
-            It shows as unverified until we check your EPA licence. {isMock && 'Demo mode: it is saved in this browser only.'}
+            {isVerified(created) ? 'It shows as verified because your ABN is on file.' : 'Add your ABN to show as verified.'} {isMock && 'Demo mode: it is saved in this browser only.'}
             <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
               <Link className="btn btn-primary" to="/my-listings">Go to my listings</Link>
               <Link className="btn btn-ghost" to={`/listing/${created.id}`}>View listing</Link>
@@ -153,23 +143,13 @@ export function SellNew() {
                   {errors.abn && <span className="err">{errors.abn}</span>}
                 </label>
               )}
-              <div className="form-row">
-                <label className="field">Suburb
-                  <input id="s-suburb" value={form.suburb} onChange={e => update({ suburb: e.target.value })} aria-invalid={!!errors.suburb} />
-                  {errors.suburb && <span className="err">{errors.suburb}</span>}
-                </label>
-                <div className="field"><label htmlFor="s-state">State</label>
-                  <Select<StateCode> id="s-state" value={form.state} onChange={st => update({ state: st })} options={STATES.map(st => ({ value: st, label: st }))} />
-                </div>
-              </div>
-              <div className="picker-map">
-                <MapContainer center={[form.lat, form.lng]} zoom={9} style={{ height: '100%' }} attributionControl={false}>
-                  <TileLayer url={LAYERS.map.base.url} maxZoom={LAYERS.map.base.maxZoom} />
-                  <Marker position={[form.lat, form.lng]} icon={pickIcon} />
-                  <ClickToPlace onPick={(lat, lng) => update({ lat, lng })} />
-                </MapContainer>
-              </div>
-              <p className="hint">Click the map to move the pin to your yard. <span className="num">{form.lat.toFixed(3)}, {form.lng.toFixed(3)}</span></p>
+              <AddressPicker
+                idPrefix="s"
+                label="Yard address"
+                value={{ address: form.address ?? '', suburb: form.suburb, state: form.state, postcode: form.postcode ?? '', lat: form.lat, lng: form.lng }}
+                onChange={update}
+                suburbError={errors.suburb}
+              />
             </section>
             {status === 'error' && <div className="notice error" role="alert"><AlertTriangle size={16} />Couldn't publish the listing. Check your connection and try again.</div>}
             <button className="btn btn-primary" type="submit" disabled={status === 'saving'}>{status === 'saving' ? 'Publishing…' : 'Publish listing'}</button>

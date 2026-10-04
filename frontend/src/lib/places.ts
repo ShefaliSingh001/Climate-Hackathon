@@ -1,6 +1,6 @@
-import type { Site, StateCode } from '../api/types';
+import type { StateCode } from '../api/types';
 
-/** Industrial suburbs and regional centres offered at sign-up, so every account gets map coordinates. */
+/** Industrial suburbs and regional centres. The address search (lib/geocode.ts) falls back to these offline. */
 export const PLACES: { suburb: string; state: StateCode; lat: number; lng: number }[] = [
   { suburb: 'Wetherill Park', state: 'NSW', lat: -33.847, lng: 150.9 },
   { suburb: 'Smithfield', state: 'NSW', lat: -33.85, lng: 150.94 },
@@ -35,5 +35,3 @@ export const PLACES: { suburb: string; state: StateCode; lat: number; lng: numbe
   { suburb: 'Berrimah', state: 'NT', lat: -12.44, lng: 130.92 },
 ];
 
-export const placeLabel = (p: { suburb: string; state: string }) => `${p.suburb}, ${p.state}`;
-export const toSite = (company: string, p: (typeof PLACES)[number]): Site => ({ name: company, ...p });

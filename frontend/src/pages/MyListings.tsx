@@ -5,6 +5,7 @@ import { api } from '../api/client';
 import { useAuth, useSite } from '../auth/AuthProvider';
 import { useAsync } from '../hooks/useAsync';
 import { MATERIALS } from '../lib/materials';
+import { VERIFIED_LABEL, isVerified } from '../lib/verify';
 import { aud, monthlyTonnes, tonnes, volume } from '../lib/format';
 
 /** A seller's own supply listings, matched on ABN. */
@@ -58,7 +59,7 @@ export function MyListings() {
                       <td>{l.grade}<small>{l.form}</small></td>
                       <td className="r">{volume(l.tonnes, l.frequency)}</td>
                       <td className="r num">{aud(l.priceAud)} <small>per tonne</small></td>
-                      <td>{l.verified ? <span className="tag good"><BadgeCheck size={12} /> Verified</span> : <span className="tag">Awaiting checks</span>}</td>
+                      <td>{isVerified(l) ? <span className="tag good" title={VERIFIED_LABEL}><BadgeCheck size={12} /> Verified</span> : <span className="tag">No ABN on file</span>}</td>
                       <td><Link className="icon-btn" to={`/listing/${l.id}`} aria-label={`Open ${MATERIALS[l.material].label} listing`}><ChevronRight size={16} /></Link></td>
                     </tr>
                   ))}

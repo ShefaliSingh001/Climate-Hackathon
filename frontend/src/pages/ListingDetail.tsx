@@ -1,6 +1,6 @@
-import type { CSSProperties } from 'react';
+import { useEffect, type CSSProperties } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
-import { ArrowLeft, BadgeCheck, Clock, Layers3, Leaf, MapPin, Trophy } from 'lucide-react';
+import { ArrowLeft, BadgeCheck, Clock, Handshake, Layers3, Leaf, MapPin, Trophy } from 'lucide-react';
 import type { Listing, Site } from '../api/types';
 import { useRoute } from '../hooks/useRoute';
 import { api } from '../api/client';
@@ -12,6 +12,8 @@ import { PRICE_NOTE, aud, belowNew, driveTime, fmtInt, monthlyTonnes, tonnes, vo
 import { RouteMap } from '../components/map/RouteMap';
 import { LogisticsEstimate } from '../components/listings/LogisticsEstimate';
 import { EnquiryForm } from '../components/listings/EnquiryForm';
+import { TeamUpPlanner } from '../components/collab/TeamUpPlanner';
+import { VERIFIED_LABEL, isVerified } from '../lib/verify';
 
 export function ListingDetail() {
   const { id = '' } = useParams();
@@ -50,10 +52,18 @@ export function ListingDetail() {
 interface RankState { rank?: { position: number; of: number } }
 
 function ListingBody({ l, own, site: HOME_SITE }: { l: Listing; own: boolean; site: Site }) {
-  const rank = (useLocation().state as RankState | null)?.rank;
+  const location = useLocation();
+  const rank = (location.state as RankState | null)?.rank;
+  // Links like /listing/d06#team-up or #enquiry jump to that panel once it has rendered.
+  useEffect(() => {
+    if (!location.hash) return;
+    const t = setTimeout(() => document.getElementById(location.hash.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 300);
+    return () => clearTimeout(t);
+  }, [location.hash, l.id]);
   const { route } = useRoute(HOME_SITE, l);
   const m = MATERIALS[l.material];
   const isSupply = l.kind === 'supply';
+  const verified = isVerified(l);
   // Real road distance when the routing service answers; otherwise straight line × 1.25.
   const distanceKm = route?.distanceKm ?? roadKm(HOME_SITE, l);
   const monthly = monthlyTonnes(l.tonnes, l.frequency);
@@ -69,7 +79,7 @@ function ListingBody({ l, own, site: HOME_SITE }: { l: Listing; own: boolean; si
           <div className={`code large${isSupply ? '' : ' square'}`} style={{ '--c': m.color } as CSSProperties}>{m.code}</div>
           <div className="detail-title">
             <p className="eyebrow">{isSupply ? 'Supply listing' : 'Buyer request'} · {m.label}</p>
-            <h1>{l.company}{l.verified && <span className="verified" title="Verified site and licences"><BadgeCheck size={20} /></span>}</h1>
+            <h1>{l.company}{verified && <span className="verified" title={VERIFIED_LABEL}><BadgeCheck size={20} /></span>}</h1>
             <p className="detail-sub"><MapPin size={14} />{l.suburb}, {l.state} · {fmtInt(distanceKm)} km by road from {HOME_SITE.suburb}
               {route && <><Clock size={14} style={{ marginLeft: 6 }} />{driveTime(route.durationMin)} drive</>}</p>
             {rank && <p className="detail-rank"><Trophy size={14} />Ranked #{rank.position} of {rank.of} {isSupply ? 'suppliers' : 'buyer requests'} on your map</p>}
@@ -79,6 +89,7 @@ function ListingBody({ l, own, site: HOME_SITE }: { l: Listing; own: boolean; si
             {isSupply && !own && (
               <Link className="btn btn-ghost" to={`/sourcing?tab=combine&material=${l.material}`}><Layers3 size={16} />Combine with other suppliers</Link>
             )}
+            {!isSupply && !own && <a className="btn btn-ghost" href="#team-up"><Handshake size={16} />Team up with other recyclers</a>}
           </div>
         </header>
 
@@ -88,6 +99,8 @@ function ListingBody({ l, own, site: HOME_SITE }: { l: Listing; own: boolean; si
           <div className="kpi"><dt>{isSupply ? 'Purity' : 'Minimum purity'}</dt><dd>{l.purity != null ? `${l.purity}%` : 'On request'}<small>{l.grade}</small></dd></div>
           <div className="kpi"><dt>Emissions avoided</dt><dd>{tonnes(monthly * m.co2PerTonne)}<small>of <abbr title="carbon dioxide equivalent">CO₂e</abbr> per month at full volume</small></dd></div>
         </dl>
+
+        {!isSupply && !own && <TeamUpPlanner request={l} />}
 
         <div className="detail-grid">
           <div className="stack">
@@ -145,12 +158,12 @@ function ListingBody({ l, own, site: HOME_SITE }: { l: Listing; own: boolean; si
                 <tbody>
                   <tr><th>Location</th><td>{l.suburb}, {l.state}</td></tr>
                   <tr><th>Trading on ResourceX</th><td className="num">{l.monthsOnPlatform} months</td></tr>
-                  <tr><th>Status</th><td>{l.verified ? 'Verified site and licences' : 'Not yet verified'}</td></tr>
+                  <tr><th>Status</th><td>{verified ? VERIFIED_LABEL : 'Not verified (no ABN on file)'}</td></tr>
                 </tbody>
               </table>
               <h2 style={{ marginTop: 16 }}>Licences and certifications</h2>
               <div className="certs">
-                {l.verified && <span className="tag good">Verified site</span>}
+                {verified && <span className="tag good">Verified business</span>}
                 {l.certifications.map(c => <span key={c} className="tag">{c}</span>)}
               </div>
             </section>

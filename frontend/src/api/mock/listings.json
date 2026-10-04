@@ -954,5 +954,29 @@
     ],
     "verified": true,
     "monthsOnPlatform": 7
+  },
+  {
+    "id": "d09",
+    "kind": "demand",
+    "company": "Westlink Cable Co.",
+    "suburb": "Wetherill Park",
+    "state": "NSW",
+    "lat": -33.847,
+    "lng": 150.9,
+    "material": "copper",
+    "grade": "#1 bare bright (Millberry)",
+    "form": "Granules or chopped wire",
+    "tonnes": 60,
+    "frequency": "Monthly",
+    "priceAud": 19900,
+    "virginPriceAud": 20500,
+    "purity": 99.5,
+    "certifications": [
+      "ISO 9001",
+      "ISO 14001"
+    ],
+    "verified": true,
+    "monthsOnPlatform": 14,
+    "abn": "99000000001"
   }
 ]

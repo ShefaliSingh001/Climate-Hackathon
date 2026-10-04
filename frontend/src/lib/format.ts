@@ -38,3 +38,12 @@ export function driveTime(minutes: number) {
 }
 
 export const PRICE_NOTE = 'All prices are in Australian dollars (AUD), excluding GST.';
+
+const dateFmt = new Intl.DateTimeFormat('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+const monthFmt = new Intl.DateTimeFormat('en-AU', { month: 'short' });
+/** "4 Oct 2026" */
+export const shortDate = (iso: string) => dateFmt.format(new Date(iso));
+/** "Oct" */
+export const monthName = (d: Date) => monthFmt.format(d);
+/** "$1.2 million", "$845,000" */
+export const audBig = (n: number) => (Math.abs(n) >= 1e6 ? `$${(n / 1e6).toFixed(n >= 1e7 ? 1 : 2)} million` : aud(n));

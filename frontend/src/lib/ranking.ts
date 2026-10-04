@@ -1,6 +1,7 @@
 // Turns a set of listings into positions: an overall rank plus a rank on each factor.
 // The UI shows positions ("#2 of 18", "1st nearest") and relative bars, never a score.
 import type { Listing } from '../api/types';
+import { isVerified } from './verify';
 
 export type Factor = 'material' | 'distance' | 'price' | 'reliability';
 export const FACTORS: { key: Factor; label: string; best: string }[] = [
@@ -11,7 +12,7 @@ export const FACTORS: { key: Factor; label: string; best: string }[] = [
 ];
 
 export interface FactorRank {
-  /** 1 = best among the listings ranked together. Ties share a position. */
+  /** 1 = best among the listings ranked together. Every listing has its own position (no ties). */
   position: number;
   /** 0–100 bar fill, relative to the others in the set. */
   fill: number;
@@ -35,15 +36,18 @@ function raw(l: Rankable): Record<Factor, number> {
   // Supply: how much cheaper than newly sourced. Demand (seen by sellers): how much the buyer pays relative to it.
   const ratio = l.virginPriceAud ? l.priceAud / l.virginPriceAud : null;
   const price = ratio == null ? 0 : l.kind === 'supply' ? 1 - ratio : ratio;
-  const reliability = (l.verified ? 40 : 0) + l.monthsOnPlatform * 2 + l.certifications.length * 4;
+  const reliability = (isVerified(l) ? 40 : 0) + l.monthsOnPlatform * 2 + l.certifications.length * 4;
   return { material, distance: -l.distanceKm, price, reliability };
 }
 
-/** Competition ranking: equal values share a position (1, 2, 2, 4). */
-function positions(values: number[]) {
-  const order = values.map((v, i) => [v, i] as const).sort((a, b) => b[0] - a[0]);
+/**
+ * Unique positions 1, 2, 3… (higher value is better). Equal values never share a position:
+ * `tiebreak` decides (lower comes first), then the original order.
+ */
+function positions(values: number[], tiebreak: number[] = values.map((_, i) => i)) {
+  const order = values.map((_, i) => i).sort((a, b) => values[b] - values[a] || tiebreak[a] - tiebreak[b] || a - b);
   const pos = new Array<number>(values.length);
-  order.forEach(([v, i], k) => { pos[i] = k > 0 && v === order[k - 1][0] ? pos[order[k - 1][1]] : k + 1; });
+  order.forEach((i, k) => { pos[i] = k + 1; });
   return pos;
 }
 
@@ -57,15 +61,16 @@ export function rankListings<T extends Rankable>(listings: T[]): Map<string, Ran
   const out = new Map<string, Ranking>();
   if (!listings.length) return out;
   const raws = listings.map(raw);
-  const perFactor = {} as Record<Factor, { pos: number[]; fill: number[] }>;
-  for (const { key } of FACTORS) {
-    const vals = raws.map(r => r[key]);
-    perFactor[key] = { pos: positions(vals), fill: fills(vals) };
-  }
+  const fillsBy = Object.fromEntries(FACTORS.map(f => [f.key, fills(raws.map(r => r[f.key]))])) as Record<Factor, number[]>;
   const useModel = listings.every(l => l.matchScore != null);
   const overall = listings.map((l, i) =>
-    useModel ? l.matchScore! : FACTORS.reduce((s, f) => s + perFactor[f.key].fill[i] * WEIGHTS[f.key], 0));
-  const overallPos = positions(overall);
+    useModel ? l.matchScore! : FACTORS.reduce((s, f) => s + fillsBy[f.key][i] * WEIGHTS[f.key], 0));
+  // Overall ties go to the nearer listing; factor ties go to the better overall position.
+  const overallPos = positions(overall, listings.map(l => l.distanceKm));
+  const perFactor = {} as Record<Factor, { pos: number[]; fill: number[] }>;
+  for (const { key } of FACTORS) {
+    perFactor[key] = { pos: positions(raws.map(r => r[key]), overallPos), fill: fillsBy[key] };
+  }
 
   listings.forEach((l, i) => {
     out.set(l.id, {
@@ -79,6 +84,7 @@ export function rankListings<T extends Rankable>(listings: T[]): Map<string, Ran
 
 /** Per-factor positions for results that already carry 0–100 factor values (Sourcing's ranked list). */
 export function rankBreakdowns(rows: Record<Factor, number>[]): Record<Factor, FactorRank>[] {
+  // Rows arrive in ranked order, so ties go to the higher-ranked row.
   const per = Object.fromEntries(FACTORS.map(f => [f.key, positions(rows.map(r => r[f.key]))])) as Record<Factor, number[]>;
   return rows.map((r, i) => Object.fromEntries(FACTORS.map(f => [f.key, { position: per[f.key][i], fill: Math.max(4, r[f.key]) }])) as Record<Factor, FactorRank>);
 }

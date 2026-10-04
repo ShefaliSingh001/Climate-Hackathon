@@ -5,6 +5,169 @@ Anyone (or any Claude session) picking up the frontend should read this before s
 
 ---
 
+## 2026-10-04: Backend for orders and collaborations, real logins in API mode, card icons, shared pop-up
+
+**What**
+- **Backend** (separate commits, reviewed by the backend owner; see `backend/HANDOFF_ORDERS_COLLAB.md`):
+  - new tables `orders`, `collaborations` and `collaboration_members` in both schemas;
+  - `GET /orders` and the `/collaborations…` endpoints in `backend/app/trade.py`;
+  - signed-in quote requests and offers create pending orders;
+  - a sent joint offer becomes a pending joint order;
+  - `verified` = ABN on file, and listings save and return `address` and `postcode`;
+  - demo accounts get seeded history and invites;
+  - 68 tests pass on SQLite and Postgres.
+- **API mode uses the backend logins** (the steps in `backend/FRONTEND_HANDOFF.md`):
+  - new `auth/token.ts` and `auth/serverAuth.ts`, plus `authApi` in `api/client.ts`;
+  - every call sends `Authorization: Bearer <token>`, errors carry `status`, and 204 is handled;
+  - `AuthProvider` picks `serverAuth` when `VITE_API_URL` is set and re-checks `/auth/me` on load;
+  - sign-up sends the business with the login in one call;
+  - `useListings` refetches when the account changes;
+  - demo mode is unchanged.
+- **Map cards:** each stat has a mini icon (Material: package, Production rate: factory, Quantity needed: clipboard, Price: dollar, Distance: route). The icons are decorative; the labels stay as text.
+- **One pop-up for both sides:** `SupplierPicker` now takes a title, a noun, an intro line and the distance wording.
+  - Buyers: Combine suppliers → **Add suppliers**.
+  - Sellers: the Team up planner shows your listing plus the partners you added (editable tonnes, remove), with **Add partners** opening the same card pop-up (distances read "to the buyer") and **Suggest partners**.
+  - A business that is the buyer on a request is never offered as its partner (fixed in the UI and the API).
+
+**Tested end to end against the real API** (uvicorn on a copy of the SQLite file, frontend built with `VITE_API_URL`):
+- demo buyer: login → Orders (69 seeded orders) → a quote request adds a pending order;
+- demo seller: accept an invite → team up on a copper request → two partners accept through the API → send the joint offer → it appears in Orders as a joint order;
+- sign-up with the address search (offline fallback).
+
+**Files**
+- Frontend:
+  - New: `auth/token.ts`, `auth/serverAuth.ts`.
+  - Changed:
+    - API and auth: `api/client.ts`, `auth/types.ts`, `auth/AuthProvider.tsx`
+    - Pages and hooks: `pages/Auth.tsx`, `hooks/useListings.ts`
+    - Components: `ListingCard`, `SupplierPicker`, `CombinePlanner`, `TeamUpPlanner`
+    - Styles: `styles/app.css`
+    - Docs: `API_CONTRACT.md`, `CLAUDE.md`
+- Backend:
+  - New: `backend/app/trade.py`, `backend/tests/test_trade.py`, `backend/HANDOFF_ORDERS_COLLAB.md`.
+  - Changed: the two schema files, `main.py`, `listings.py`, `db.py`, `backend/README.md`, `backend/FRONTEND_HANDOFF.md` and one bullet in the root `CLAUDE.md`.
+
+**Merged with main (#13, October 2026 market prices)**
+- **Homepage sample order and match card:** recomputed from the new sample prices. The order is $19,470 per tonne delivered, 5% cheaper than new copper at $20,500.
+- **Demo data:** Westlink's 60-tonne request (`d09`) now pays up to $19,900.
+- **Backend demo seed:** it now adapts to whatever the dataset holds, because the new dataset has no copper buyers.
+  - The demo seller sells copper to brass makers and to the demo buyer.
+  - Its two invites go on the requests with the most suppliers (aluminium and alloys today).
+  - The collaboration tests use alloys.
+- 71 backend tests pass.
+
+**Open items**
+- Orders never move past `pending` yet (no confirm or delivery endpoint).
+- "Suggest partners" uses the nearest recyclers. It could use the matching model's `/collaborate` mode instead.
+
+---
+
+## 2026-10-04: Address search on the map, AI-matching homepage, ABN = verified, buyer picks suppliers
+
+**What**
+- **Address search moves the map.** New `components/map/AddressPicker.tsx` holds street address (with suggestions), suburb, state, postcode and a map.
+  - Typing searches for the address (`lib/geocode.ts`, Photon / OpenStreetMap, keyless) and flies the pin to the best match. It fills suburb, state and postcode if they're empty.
+  - You can pick a suggestion, drag the pin, or click the map.
+  - It is used on **List material** (yard address) and **Sign-up** (yard or delivery address, replacing the fixed suburb dropdown).
+  - When Photon can't be reached, known suburbs still resolve offline (`lib/places.ts`).
+  - Listings and sites now carry an optional `address` and `postcode`.
+- **Verified = ABN on file.** `lib/verify.ts` provides `isVerified()` (true if `verified` is true or the ABN is 11 digits). It is used everywhere badges, the "Verified only" filter, ranking and the planner read verification.
+  - New listings are verified straight away when they have an ABN.
+  - "Awaiting checks" / "unverified until we check your EPA licence" is gone. The label is "Verified business (ABN on file)".
+- **Buyer combined orders start empty.** On Sourcing → Combine suppliers there are two ways to start:
+  - **Add suppliers** opens a pop-up (`components/sourcing/SupplierPicker.tsx`) with the qualifying suppliers as the same cards as the map side list (#rank, Material, Production rate, Price, Distance). It has search and sort, and you multi-select then add.
+  - **Suggest a split with AI** runs the matching model as before.
+  - Re-suggest and Add suppliers stay available above the split. `ListingCard` gained optional `selected`, `trailing` and `actionLabel` props.
+- **Homepage: AI matching.**
+  - Hero: "Recycled materials, matched by AI", with an AI eyebrow and a new lede.
+  - New dark "The matching engine" section with four points (hard rules first, ranked with reasons, splits big orders, priced to your door) and an animated sample match card (request chips, scan bar, three ranked suppliers with rule checks, combined result).
+  - The nav reads AI matching · How it works · Who it's for · Impact. The Match step and the meta description mention AI.
+
+**Files**
+- New: `components/map/AddressPicker.tsx`, `lib/geocode.ts`, `lib/verify.ts`, `components/sourcing/SupplierPicker.tsx`.
+- Changed:
+  - Pages: `SellNew`, `Auth` (sign-up), `Home`, `ListingDetail`, `MyListings`, `Matches`
+  - Components: `CombinePlanner`, `ListingCard`
+  - Lib and hooks: `lib/places.ts`, `lib/ranking.ts`, `lib/sourcing.ts`, `hooks/useListings.ts`
+  - API and mock: `api/types.ts`, `api/mock/mockApi.ts`, `api/mock/scoring.ts`
+  - Other: `index.html`, `styles/app.css`, `styles/home.css`
+  - Docs: `API_CONTRACT.md`, `CLAUDE.md`
+
+**Open items**
+- Photon is a free, fair-use service with no uptime promise. Before launch, use a paid or self-hosted geocoder (Geoscape G-NAF is the Australian standard, or Mapbox or Google Places).
+- The sandbox blocks Photon, so address search was tested with a stubbed Photon response plus the offline fallback. Check it live in a local browser.
+- Backend: set `verified: true` whenever a listing's business has an ABN, and optionally store `address` and `postcode`.
+
+---
+
+## 2026-10-04: Orders dashboard, seller collaborations, stats on map cards
+
+**What**
+- **Map side panel:** each card now shows the listing's stats in plain words in a 2 × 2 grid, instead of the ranking bars: Material, Production rate (buyer requests: Quantity needed), Price (buyer requests: Pays up to) and Distance. The #position badge stays, and the suburb sits under the name. Reliability is gone from the cards. `RankBars` is now used only on Sourcing.
+- **Orders** (`/orders`, both roles, in the top nav), a dashboard:
+  - KPIs against the previous period: spent (buyers, including freight) or sales (sellers), tonnes, number of orders, emissions avoided.
+  - A tonnes-per-month column chart with hover and focus tooltips.
+  - Tonnes by material, top suppliers or buyers, and in-progress orders with a status stepper (Requested, Confirmed, In transit, Delivered).
+  - A searchable order table with tabs (All, Active, Delivered, Cancelled). Rows expand to show dates, price, freight, distance, emissions, joint-order partners, and View listing or Order again.
+  - The period picker offers 3, 6 or 12 months.
+- **Collaborations** (`/collaborations`, sellers): recyclers team up on buyer requests that are too big for one yard.
+  - **Starting a team:** a buyer request page now has a "Team up with other recyclers" planner (`components/collab/TeamUpPlanner.tsx`):
+    - your own supply plus the nearest suppliers of the same material, with editable tonnes and "Suggest partners";
+    - a coverage meter, average price against the buyer's limit, and delivered price with freight;
+    - an "Invite partners" button.
+  - **The page:** tabs for invites for you (Accept / Decline), teams you lead (send the joint offer once partners reply, or Withdraw), and requests for your materials (shows when a request needs more than you list).
+  - **Joint offers** appear in Orders as pending joint orders.
+- **Demo data:**
+  - Demo accounts get 24 months of sample orders (`api/mock/orders.ts`, seeded so they're stable).
+  - Quote requests, offers and joint offers made in the browser are added to Orders.
+  - The demo seller starts with two invites from other recyclers, and partners invited in demo mode accept after about 8 seconds.
+  - New buyer request `d09`: Westlink Cable Co. needs 60 tonnes of copper a month, more than any single yard lists.
+- **API:** `listOrders`, `listCollaborations`, `createCollaboration`, `respondToCollaboration`, `withdrawCollaboration` and `sendJointOffer` were added to `api/client.ts`, with the proposed endpoints in `API_CONTRACT.md` (`GET /orders`, `/collaborations…`).
+
+**Files**
+- New:
+  - `pages/Orders.tsx`, `pages/Collaborations.tsx`
+  - `components/orders/MonthlyChart.tsx`, `components/collab/TeamUpPlanner.tsx`
+  - `api/mock/orders.ts`, `api/mock/collaborations.ts`
+- Changed:
+  - API: `api/types.ts`, `api/client.ts`, `api/mock/mockApi.ts`, `api/mock/listings.json`
+  - Pages and components: `ListingCard`, `RankBars`, `ListingDetail`, `TopBar`, `App.tsx`
+  - Other: `lib/format.ts` (`shortDate`, `monthName`, `audBig`), `styles/app.css`
+  - Docs: `README.md`, `CLAUDE.md`
+
+**Open items for the backend**
+- Build `GET /orders` and the collaboration endpoints, or tell the frontend to adapt. In API mode the Orders and Collaborations pages call them directly, so they show an error until they exist.
+- A quote request (`POST /listings/{id}/enquiries`) should create a pending order.
+
+---
+
+## 2026-10-04: Homepage merge, zoomed map, unique rankings, settings and state picker tidy-up
+
+**What**
+- **Homepage:**
+  - The problem section has no photo now. The heading and intro sit on the left and the three facts on the right; the third fact is "600 km" instead of "$ per tonne".
+  - "How it works" and "The platform" are merged into one "How it works" section:
+    - three numbered steps (List, Match, Deliver), each with its photo and two platform features;
+    - the sample map card is sticky beside them, with the combined order shown below the map instead of over it.
+  - The nav reads The problem · How it works · Who it's for · Impact.
+- **Homepage map:** zoomed into Greater Sydney, the Hunter and the Illawarra (`VIEW` in `pages/Home.tsx` crops and scales the `nswMap.ts` coordinates), so suppliers no longer pile up in one spot.
+  - Out-of-view pins are hidden.
+  - Pins stay a fixed size and the outline uses a non-scaling stroke.
+  - City labels have a halo, and there is a Tasman Sea label and a 50 km scale bar.
+  - The routes now come from Hunter (Kooragang), Smithfield and Illawarra (Port Kembla). The sample order is 25 + 23 + 12 = 60 tonnes, at $12,780 per tonne delivered.
+- **Rankings:** positions are unique, 1, 2, 3… with no shared places (`positions()` in `lib/ranking.ts`).
+  - Overall ties go to the nearer listing.
+  - Ties on a single factor go to the better overall position.
+  - On Sourcing, a tie goes to the higher-ranked row.
+- **Settings:** "Reset demo data" is removed, along with the settings store's unused `reset()`.
+- **State picker:** "All of Australia" is first in `REGIONS`, ahead of NSW. NSW is still the default.
+- **Removed:** `public/images/scrap-yard.webp` and its credit, and the parallax code in `components/home/motion.tsx` (it was only used by that photo).
+
+**Files**
+- `pages/Home.tsx`, `styles/home.css`, `components/home/motion.tsx`, `lib/ranking.ts`, `lib/regions.ts`, `pages/Settings.tsx`, `state/settings.ts`, `styles/app.css`, `public/images/CREDITS.md`.
+
+---
+
 ## 2026-10-04: Realistic data across the app (October 2026 market research)
 
 **What**

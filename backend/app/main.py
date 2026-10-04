@@ -19,7 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from pydantic import BaseModel, Field
 
-from . import auth, impact, matching, report
+from . import auth, impact, matching, report, trade
 from .db import DB, connect, integrity_errors, is_postgres
 from .listings import GRADE_LABELS, all_listings, get_listing, parse_id
 
@@ -66,12 +66,17 @@ async def validation_error(_: Request, exc: RequestValidationError):
 # Request bodies
 # ---------------------------------------------------------------------------------------------
 
+Postcode = Field(default=None, pattern=r"^(\d{4})?$", description="4 digits, or empty")
+
+
 class Site(BaseModel):
     name: str = ""
     suburb: str = Field(default="", max_length=100)
     state: StateCode = "NSW"
     lat: float = Field(ge=-90, le=90)
     lng: float = Field(ge=-180, le=180)
+    address: str | None = Field(default=None, max_length=200)  # street address, optional
+    postcode: str | None = Postcode
 
 
 class Requirement(BaseModel):
@@ -132,6 +137,8 @@ class NewListing(BusinessDetails):
     state: StateCode | None = None
     lat: float | None = Field(default=None, ge=-90, le=90)
     lng: float | None = Field(default=None, ge=-180, le=180)
+    address: str | None = Field(default=None, max_length=200)
+    postcode: str | None = Postcode
 
 
 class SignUp(BaseModel):
@@ -158,6 +165,21 @@ class Enquiry(BaseModel):
     tonnesPerMonth: float = Field(gt=0)
     firstDelivery: str = Field(min_length=1, max_length=100)
     message: str = Field(default="", max_length=5000)
+
+
+class CollaborationMember(BaseModel):
+    listingId: str = Field(pattern=r"^p\d+$", description="a supply listing, e.g. p12")
+    tonnes: float = Field(gt=0, le=1_000_000, description="tonnes a month this member supplies")
+
+
+class NewCollaboration(BaseModel):
+    requestId: str = Field(pattern=r"^m\d+$", description="the buyer request, e.g. m7")
+    members: list[CollaborationMember] = Field(min_length=1, max_length=12)
+    message: str = Field(default="", max_length=2000)
+
+
+class CollaborationReply(BaseModel):
+    accept: bool
 
 
 # ---------------------------------------------------------------------------------------------
@@ -187,6 +209,7 @@ def insert_listing(db: DB, body: BusinessDetails, *, kind: str, company: str, ab
     today = dt.date.today()
     common = dict(name=company.strip(), abn=abn, website=(body.website or "").strip() or None,
                   locality=site["suburb"].strip() or "Unknown", state=site["state"], lat=site["lat"], lng=site["lng"],
+                  address=(site.get("address") or "").strip() or None, postcode=site.get("postcode") or None,
                   geo_source="user")
     if kind == "supply":
         start = body.availableFrom or today
@@ -223,7 +246,8 @@ def account_site(account: dict) -> dict:
 def signup(body: SignUp):
     """Create the business (producers or manufacturers row) and its login in one transaction."""
     email = body.email.strip().lower()
-    site = {"suburb": body.site.suburb, "state": body.site.state, "lat": body.site.lat, "lng": body.site.lng}
+    site = {"suburb": body.site.suburb, "state": body.site.state, "lat": body.site.lat, "lng": body.site.lng,
+            "address": body.site.address, "postcode": body.site.postcode}
     if not site["suburb"].strip():
         raise HTTPException(status_code=422, detail="site.suburb is required")
     with connect() as db:
@@ -337,7 +361,8 @@ def create_listing(body: NewListing, account: dict | None = Depends(auth.optiona
         missing = [f for f in ("kind", "company", "abn", "suburb", "lat", "lng") if getattr(body, f) in (None, "")]
         if missing:
             raise HTTPException(status_code=422, detail=f"Log in, or send: {', '.join(missing)}")
-        site = {"suburb": body.suburb, "state": body.state or "NSW", "lat": body.lat, "lng": body.lng}
+        site = {"suburb": body.suburb, "state": body.state or "NSW", "lat": body.lat, "lng": body.lng,
+                "address": body.address, "postcode": body.postcode}
         with connect() as db:
             listing_id = insert_listing(db, body, kind=body.kind, company=body.company, abn=body.abn, site=site)
             return get_listing(db, listing_id)
@@ -346,7 +371,8 @@ def create_listing(body: NewListing, account: dict | None = Depends(auth.optiona
         raise HTTPException(status_code=403, detail=f"A {account['role']} account can't create {body.kind} listings.")
     site = account_site(account)
     if body.lat is not None and body.lng is not None:
-        site = {"suburb": body.suburb or site["suburb"], "state": body.state or site["state"], "lat": body.lat, "lng": body.lng}
+        site = {"suburb": body.suburb or site["suburb"], "state": body.state or site["state"], "lat": body.lat, "lng": body.lng,
+                "address": body.address, "postcode": body.postcode}
     with connect() as db:
         listing_id = insert_listing(db, body, kind=kind, company=account["company"], abn=account["abn"], site=site)
         column = "producer_id" if kind == "supply" else "manufacturer_id"
@@ -358,12 +384,15 @@ def create_listing(body: NewListing, account: dict | None = Depends(auth.optiona
 def send_enquiry(listing_id: str, body: Enquiry, account: dict | None = Depends(auth.optional_account)):
     parsed = parse_id(listing_id)
     with connect() as db:
-        if parsed is None or get_listing(db, listing_id) is None:
+        listing = get_listing(db, listing_id) if parsed else None
+        if listing is None:
             raise HTTPException(status_code=404, detail=f"Listing {listing_id} not found")
         column = "producer_id" if parsed[0] == "producers" else "manufacturer_id"
         enquiry_id = db.insert("enquiries", {column: parsed[1], "tonnes_per_month": body.tonnesPerMonth,
                                              "first_delivery": body.firstDelivery, "message": body.message,
                                              "account_id": account["id"] if account else None})
+        if account:  # signed in: it also shows up in both parties' Orders as pending
+            trade.order_for_enquiry(db, account, listing, body.tonnesPerMonth, enquiry_id)
     return {"id": f"enq{enquiry_id}", "status": "sent"}
 
 
@@ -380,6 +409,56 @@ def find_matches(body: MatchRequest):
 @app.post("/orders/plan")
 def plan_order(body: OrderPlanRequest):
     return run(matching.plan_order, supply_listings(), body.model_dump(mode="json"))
+
+
+# ---------------------------------------------------------------------------------------------
+# Orders and seller collaborations (app/trade.py)
+# ---------------------------------------------------------------------------------------------
+
+def require_seller(account: dict = Depends(auth.require_account)) -> dict:
+    if account["role"] != "seller":
+        raise HTTPException(status_code=403, detail="Collaborations are for seller accounts.")
+    return account
+
+
+@app.get("/orders")
+def list_orders(account: dict = Depends(auth.require_account)):
+    """The account's orders, as buyer or seller, newest first."""
+    with connect() as db:
+        return trade.orders_for(db, account)
+
+
+@app.get("/collaborations")
+def list_collaborations(account: dict = Depends(require_seller)):
+    """Teams the seller leads or was invited to."""
+    with connect() as db:
+        return trade.collaborations_for(db, account)
+
+
+@app.post("/collaborations", status_code=201)
+def create_collaboration(body: NewCollaboration, account: dict = Depends(require_seller)):
+    """Start a team on a buyer request. The caller leads; the other members are invited."""
+    with connect() as db:
+        return trade.create_collaboration(db, account, body.requestId, [m.model_dump() for m in body.members], body.message)
+
+
+@app.post("/collaborations/{collaboration_id}/respond")
+def respond_to_collaboration(collaboration_id: str, body: CollaborationReply, account: dict = Depends(require_seller)):
+    with connect() as db:
+        return trade.respond(db, account, collaboration_id, body.accept)
+
+
+@app.post("/collaborations/{collaboration_id}/withdraw")
+def withdraw_collaboration(collaboration_id: str, account: dict = Depends(require_seller)):
+    with connect() as db:
+        return trade.withdraw(db, account, collaboration_id)
+
+
+@app.post("/collaborations/{collaboration_id}/offer")
+def send_joint_offer(collaboration_id: str, account: dict = Depends(require_seller)):
+    """The lead sends the team's offer to the buyer; it becomes a pending joint order."""
+    with connect() as db:
+        return trade.send_offer(db, account, collaboration_id)
 
 
 @app.get("/impact")

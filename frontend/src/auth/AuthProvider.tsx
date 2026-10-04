@@ -3,7 +3,9 @@ import { Navigate, useLocation } from 'react-router-dom';
 import type { Site } from '../api/types';
 import { HOME_SITE } from '../lib/regions';
 import { useMarket } from '../state/store';
+import { isMock } from '../api/client';
 import { mockAuth } from './mockAuth';
+import { serverAuth } from './serverAuth';
 import type { Account, AuthClient, Role, SignUpInput } from './types';
 
 interface AuthState {
@@ -16,11 +18,17 @@ interface AuthState {
 }
 
 const AuthContext = createContext<AuthState | null>(null);
-const client: AuthClient = mockAuth;
+// Demo mode keeps accounts in the browser; with VITE_API_URL set, logins live in the backend database.
+const client: AuthClient = isMock ? mockAuth : serverAuth;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [account, setAccount] = useState<Account | null>(client.current());
   const setMarket = useMarket(s => s.set);
+
+  // Re-check a saved server session (it may have expired or been logged out elsewhere).
+  useEffect(() => {
+    client.refresh?.().then(setAccount);
+  }, []);
 
   // Buyers browse supply; sellers browse buyer requests.
   useEffect(() => {
